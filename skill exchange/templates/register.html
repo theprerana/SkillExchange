@@ -1,0 +1,199 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>Register</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:'Poppins',sans-serif;
+        }
+
+        body{
+
+            min-height:100vh;
+
+            display:flex;
+            justify-content:center;
+            align-items:center;
+
+            background-image:url("/static/rk.jpg");
+            background-size:cover;
+            background-position:center;
+            background-repeat:no-repeat;
+
+        }
+
+        .container{
+
+            width:650px;
+
+            background:rgba(255,255,255,0.95);
+
+            padding:45px;
+
+            border-radius:20px;
+
+            box-shadow:0 10px 30px rgba(0,0,0,0.2);
+
+        }
+
+        h1{
+
+            text-align:center;
+
+            color:#24135F;
+
+            margin-bottom:10px;
+
+        }
+
+        p{
+
+            text-align:center;
+
+            color:gray;
+
+            margin-bottom:25px;
+
+        }
+
+        input{
+
+            width:100%;
+
+            padding:15px;
+
+            margin-top:15px;
+
+            border:none;
+
+            outline:none;
+
+            border-radius:10px;
+
+            background:#f2f2f2;
+
+            font-size:16px;
+
+        }
+
+        button{
+
+            width:100%;
+
+            padding:15px;
+
+            margin-top:25px;
+
+            background:#24135F;
+
+            color:white;
+
+            border:none;
+
+            border-radius:10px;
+
+            font-size:18px;
+
+            cursor:pointer;
+
+            transition:0.3s;
+
+        }
+
+        button:hover{
+
+            background:#3d248d;
+
+        }
+
+        .login{
+
+            text-align:center;
+
+            margin-top:20px;
+
+        }
+
+        .login a{
+
+            color:#24135F;
+
+            text-decoration:none;
+
+            font-weight:600;
+
+        }
+
+    </style>
+
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Create Account</h1>
+
+    <p>Join Skill Exchange Platform</p>
+
+    <form action="/register" method="POST">
+
+        <input type="text"
+               name="name"
+               placeholder="Full Name"
+               required>
+
+        <input type="text"
+               name="roll_no"
+               placeholder="Roll Number"
+               required>
+
+        <input type="email"
+               name="email"
+               placeholder="Email Address"
+               required>
+
+        <input type="text"
+               name="department"
+               placeholder="Department"
+               required>
+
+        <input type="number"
+               name="year"
+               placeholder="Year"
+               required>
+
+        <input type="password"
+               name="password"
+               placeholder="Password"
+               required>
+
+        <button type="submit">
+            Register
+        </button>
+
+    </form>
+
+    <div class="login">
+
+        Already have an account?
+
+        <a href="/login">
+            Login
+        </a>
+
+    </div>
+
+</div>
+
+</body>
+</html>
+```
