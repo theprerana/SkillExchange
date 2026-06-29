@@ -119,26 +119,35 @@ def register():
         cursor = conn.cursor()
 
         try:
+
             cursor.execute(
                 '''
-                INSERT INTO students(name, roll_no, email, department, year, password)
-                VALUES(?,?,?,?,?,?)
-                ''',
+                INSERT INTO students
                 (name, roll_no, email, department, year, password)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    name,
+                    roll_no,
+                    email,
+                    department,
+                    year,
+                    password
+                )
             )
 
             conn.commit()
+            conn.close()
+
+            return redirect('/login')
 
         except sqlite3.IntegrityError:
+
             conn.close()
-            return "Email already exists"
 
-        conn.close()
-
-        return redirect('/login')
+            return "Email or Roll Number already exists."
 
     return render_template('register.html')
-
 
 # Login
 @app.route('/login', methods=['GET', 'POST'])
