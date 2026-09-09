@@ -104,6 +104,13 @@
 
         }
 
+        button:disabled{
+
+            background:#999;
+            cursor:not-allowed;
+
+        }
+
         .login{
 
             text-align:center;
@@ -119,74 +126,430 @@
 
         }
 
+        #message{
+
+            text-align:center;
+            margin-top:15px;
+            font-size:14px;
+
+        }
+
     </style>
 
 </head>
 
+
 <body>
+
 
 <div class="container">
 
-<h1>Create Account</h1>
 
-<p>Join Skill Exchange Platform</p>
+    <h1>Create Account</h1>
 
-<form action="/register" method="POST">
-
-    <input
-        type="text"
-        name="name"
-        placeholder="Full Name"
-        required>
-
-    <input
-        type="text"
-        name="roll_no"
-        placeholder="Roll Number"
-        required>
-
-    <input
-        type="email"
-        name="email"
-        placeholder="Email Address"
-        required>
-
-    <input
-        type="text"
-        name="department"
-        placeholder="Department"
-        required>
-
-    <input
-        type="text"
-        name="year"
-        placeholder="Current Pursuing (Example: B.Tech 3rd Year)"
-        required>
+    <p>Join Skill Exchange Platform</p>
 
 
-    <input
-        type="password"
-        name="password"
-        placeholder="Password"
-        required>
+    <form id="registerForm">
 
-    <button type="submit">
-        Register
-    </button>
 
-</form>
+        <input
+            type="text"
+            name="name"
+            placeholder="Full Name"
+            required>
 
-<div class="login">
 
-Already have an account?
+        <input
+            type="text"
+            name="roll_no"
+            placeholder="Roll Number"
+            required>
 
-<a href="/login">
-Login
-</a>
+
+        <input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            required>
+
+
+        <input
+            type="text"
+            name="department"
+            placeholder="Department"
+            required>
+
+
+        <input
+            type="text"
+            name="year"
+            placeholder="Current Pursuing (Example: B.Tech 3rd Year)"
+            required>
+
+
+        <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            minlength="6"
+            required>
+
+
+        <button type="submit" id="registerButton">
+
+            Register
+
+        </button>
+
+
+    </form>
+
+
+    <div id="message"></div>
+
+
+    <div class="login">
+
+        Already have an account?
+
+        <a href="/login">
+
+            Login
+
+        </a>
+
+    </div>
+
 
 </div>
 
-</div>
+
+
+<!-- ===================================================== -->
+<!-- FIREBASE -->
+<!-- ===================================================== -->
+
+<script type="module">
+
+
+    // Firebase App
+    import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+
+    // Firebase Authentication
+    import {
+        getAuth,
+        createUserWithEmailAndPassword,
+        sendEmailVerification
+    }
+    from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+
+
+    // =====================================================
+    // FIREBASE CONFIGURATION
+    // =====================================================
+
+    const firebaseConfig = {
+
+        apiKey: "AIzaSyDFzsSCQg_xxzYTv-JSW96XEP8qH-1ZRcA",
+
+        authDomain: "skill-exchange-1b00a.firebaseapp.com",
+
+        projectId: "skill-exchange-1b00a",
+
+        storageBucket: "skill-exchange-1b00a.firebasestorage.app",
+
+        messagingSenderId: "806397337650",
+
+        appId: "1:806397337650:web:659db89cfde77f01959c2b",
+
+        measurementId: "G-5WTEE37GPE"
+
+    };
+
+
+
+    // Initialize Firebase
+
+    const app = initializeApp(firebaseConfig);
+
+    const auth = getAuth(app);
+
+
+
+    // =====================================================
+    // GET HTML ELEMENTS
+    // =====================================================
+
+    const registerForm =
+        document.getElementById("registerForm");
+
+    const registerButton =
+        document.getElementById("registerButton");
+
+    const message =
+        document.getElementById("message");
+
+
+
+    // =====================================================
+    // REGISTRATION
+    // =====================================================
+
+    registerForm.addEventListener("submit", async function(event) {
+
+
+        // Stop normal form submission
+
+        event.preventDefault();
+
+
+
+        // Disable button while registering
+
+        registerButton.disabled = true;
+
+        registerButton.innerText = "Creating Account...";
+
+        message.innerText = "";
+
+
+
+        // =================================================
+        // GET FORM VALUES
+        // =================================================
+
+        const name =
+            document.querySelector('[name="name"]').value.trim();
+
+
+        const rollNo =
+            document.querySelector('[name="roll_no"]').value.trim();
+
+
+        const email =
+            document.querySelector('[name="email"]').value.trim();
+
+
+        const department =
+            document.querySelector('[name="department"]').value.trim();
+
+
+        const year =
+            document.querySelector('[name="year"]').value.trim();
+
+
+        const password =
+            document.querySelector('[name="password"]').value;
+
+
+
+        try {
+
+
+            // =================================================
+            // STEP 1
+            // CREATE FIREBASE ACCOUNT
+            // =================================================
+
+            const userCredential =
+                await createUserWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
+
+
+            const user = userCredential.user;
+
+
+
+            // =================================================
+            // STEP 2
+            // SEND EMAIL VERIFICATION
+            // =================================================
+
+            await sendEmailVerification(user);
+
+
+
+            // =================================================
+            // STEP 3
+            // GET FIREBASE ID TOKEN
+            // =================================================
+
+            const idToken =
+                await user.getIdToken();
+
+
+
+            // =================================================
+            // STEP 4
+            // SEND PROFILE TO FLASK
+            // =================================================
+
+            const response =
+                await fetch("/save-student", {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body: JSON.stringify({
+
+                        id_token: idToken,
+
+                        name: name,
+
+                        roll_no: rollNo,
+
+                        department: department,
+
+                        year: year
+
+                    })
+
+                });
+
+
+
+            const result =
+                await response.json();
+
+
+
+            // =================================================
+            // STEP 5
+            // CHECK FLASK RESPONSE
+            // =================================================
+
+            if (result.success) {
+
+
+                message.innerText =
+                    "Registration successful! Verification email sent.";
+
+
+                alert(
+                    "Registration successful!\n\n" +
+                    "A verification email has been sent to " +
+                    email +
+                    ".\n\n" +
+                    "Please verify your email before logging in."
+                );
+
+
+                // Go to login page
+
+                window.location.href = "/login";
+
+
+            } else {
+
+
+                message.innerText =
+                    result.message;
+
+
+                registerButton.disabled = false;
+
+                registerButton.innerText =
+                    "Register";
+
+            }
+
+
+        }
+
+
+        // =====================================================
+        // FIREBASE ERRORS
+        // =====================================================
+
+        catch(error) {
+
+
+            console.error(
+                "Registration error:",
+                error
+            );
+
+
+
+            if (
+                error.code ===
+                "auth/email-already-in-use"
+            ) {
+
+
+                message.innerText =
+                    "This email is already registered.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/weak-password"
+            ) {
+
+
+                message.innerText =
+                    "Password must contain at least 6 characters.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/invalid-email"
+            ) {
+
+
+                message.innerText =
+                    "Please enter a valid email address.";
+
+
+            }
+
+
+            else {
+
+
+                message.innerText =
+                    "Registration failed: " +
+                    error.message;
+
+            }
+
+
+
+            // Enable button again
+
+            registerButton.disabled = false;
+
+            registerButton.innerText =
+                "Register";
+
+        }
+
+
+    });
+
+
+</script>
+
 
 </body>
+
 </html>
