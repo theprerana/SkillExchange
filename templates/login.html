@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>Login | Skill Exchange</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:'Poppins',sans-serif;
+        }
+
+        body{
+
+            min-height:100vh;
+
+            display:flex;
+            justify-content:center;
+            align-items:center;
+
+            background-image:url("/static/mk.jpg");
+            background-size:cover;
+            background-position:center;
+            background-repeat:no-repeat;
+
+        }
+
+        .container{
+
+            width:450px;
+
+            background:rgba(255,255,255,0.95);
+
+            padding:45px;
+
+            border-radius:20px;
+
+            box-shadow:0 10px 30px rgba(0,0,0,0.2);
+
+        }
+
+        h1{
+
+            text-align:center;
+
+            color:#24135F;
+
+            margin-bottom:10px;
+
+        }
+
+        p{
+
+            text-align:center;
+
+            color:gray;
+
+            margin-bottom:25px;
+
+        }
+
+        input{
+
+            width:100%;
+
+            padding:15px;
+
+            margin-top:15px;
+
+            border:none;
+
+            outline:none;
+
+            border-radius:10px;
+
+            background:#f2f2f2;
+
+            font-size:16px;
+
+        }
+
+        button{
+
+            width:100%;
+
+            padding:15px;
+
+            margin-top:25px;
+
+            background:#24135F;
+
+            color:white;
+
+            border:none;
+
+            border-radius:10px;
+
+            font-size:18px;
+
+            cursor:pointer;
+
+            transition:0.3s;
+
+        }
+
+        button:hover{
+
+            background:#3d248d;
+
+        }
+
+        button:disabled{
+
+            background:#999;
+
+            cursor:not-allowed;
+
+        }
+
+        .register{
+
+            text-align:center;
+
+            margin-top:20px;
+
+        }
+
+        .register a{
+
+            color:#24135F;
+
+            text-decoration:none;
+
+            font-weight:600;
+
+        }
+
+        #message{
+
+            text-align:center;
+
+            margin-top:15px;
+
+            font-size:14px;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <h1>Welcome Back</h1>
+
+    <p>Login to Skill Exchange Platform</p>
+
+
+    <form id="loginForm">
+
+
+        <input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            required>
+
+
+        <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            required>
+
+
+        <button
+            type="submit"
+            id="loginButton">
+
+            Login
+
+        </button>
+
+
+    </form>
+
+
+    <div id="message"></div>
+
+
+    <div class="register">
+
+        Don't have an account?
+
+        <a href="/register">
+
+            Register
+
+        </a>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- FIREBASE LOGIN -->
+<!-- ===================================================== -->
+
+<script type="module">
+
+
+    // Firebase App
+
+    import { initializeApp }
+
+    from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+
+
+    // Firebase Authentication
+
+    import {
+
+        getAuth,
+
+        signInWithEmailAndPassword,
+
+        reload,
+
+        signOut
+
+    }
+
+    from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+
+
+    // =====================================================
+    // FIREBASE CONFIGURATION
+    // =====================================================
+
+    const firebaseConfig = {
+
+        apiKey: "AIzaSyDFzsSCQg_xxzYTv-JSW96XEP8qH-1ZRcA",
+
+        authDomain: "skill-exchange-1b00a.firebaseapp.com",
+
+        projectId: "skill-exchange-1b00a",
+
+        storageBucket: "skill-exchange-1b00a.firebasestorage.app",
+
+        messagingSenderId: "806397337650",
+
+        appId: "1:806397337650:web:659db89cfde77f01959c2b",
+
+        measurementId: "G-5WTEE37GPE"
+
+    };
+
+
+
+    // Initialize Firebase
+
+    const app = initializeApp(firebaseConfig);
+
+    const auth = getAuth(app);
+
+
+
+    // =====================================================
+    // GET HTML ELEMENTS
+    // =====================================================
+
+    const loginForm =
+        document.getElementById("loginForm");
+
+
+    const loginButton =
+        document.getElementById("loginButton");
+
+
+    const message =
+        document.getElementById("message");
+
+
+
+    // =====================================================
+    // LOGIN
+    // =====================================================
+
+    loginForm.addEventListener("submit", async function(event) {
+
+
+        // Prevent normal form submission
+
+        event.preventDefault();
+
+
+
+        // Disable button
+
+        loginButton.disabled = true;
+
+        loginButton.innerText = "Logging in...";
+
+        message.innerText = "";
+
+
+
+        // =================================================
+        // GET EMAIL AND PASSWORD
+        // =================================================
+
+        const email =
+            document.querySelector('[name="email"]').value.trim();
+
+
+        const password =
+            document.querySelector('[name="password"]').value;
+
+
+
+        try {
+
+
+            // =================================================
+            // STEP 1
+            // LOGIN WITH FIREBASE
+            // =================================================
+
+            const userCredential =
+                await signInWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
+
+
+            const user = userCredential.user;
+
+
+
+            // =================================================
+            // STEP 2
+            // REFRESH USER INFORMATION
+            // =================================================
+
+            await reload(user);
+
+
+
+            // =================================================
+            // STEP 3
+            // CHECK EMAIL VERIFICATION
+            // =================================================
+
+            if (!user.emailVerified) {
+
+
+                message.innerText =
+                    "Please verify your email before logging in.";
+
+
+                alert(
+                    "Please verify your email first.\n\n" +
+                    "Check your email and click the verification link."
+                );
+
+
+                // Sign out from Firebase
+
+                await signOut(auth);
+
+
+                loginButton.disabled = false;
+
+                loginButton.innerText = "Login";
+
+                return;
+
+            }
+
+
+
+            // =================================================
+            // STEP 4
+            // GET FIREBASE ID TOKEN
+            // =================================================
+
+            const idToken =
+                await user.getIdToken(true);
+
+
+
+            // =================================================
+            // STEP 5
+            // SEND TOKEN TO FLASK
+            // =================================================
+
+            const response =
+                await fetch("/firebase-login", {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body: JSON.stringify({
+
+                        id_token: idToken
+
+                    })
+
+                });
+
+
+
+            const result =
+                await response.json();
+
+
+
+            // =================================================
+            // STEP 6
+            // CHECK FLASK RESPONSE
+            // =================================================
+
+            if (result.success) {
+
+
+                message.innerText =
+                    "Login successful!";
+
+
+                // Go to dashboard
+
+                window.location.href =
+                    "/dashboard";
+
+
+            } else {
+
+
+                message.innerText =
+                    result.message;
+
+
+                await signOut(auth);
+
+
+                loginButton.disabled = false;
+
+                loginButton.innerText =
+                    "Login";
+
+            }
+
+
+        }
+
+
+        // =====================================================
+        // FIREBASE ERRORS
+        // =====================================================
+
+        catch(error) {
+
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+
+
+            if (
+                error.code ===
+                "auth/invalid-credential"
+            ) {
+
+
+                message.innerText =
+                    "Invalid email or password.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/invalid-email"
+            ) {
+
+
+                message.innerText =
+                    "Please enter a valid email address.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/user-not-found"
+            ) {
+
+
+                message.innerText =
+                    "No account found with this email.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/wrong-password"
+            ) {
+
+
+                message.innerText =
+                    "Incorrect password.";
+
+
+            }
+
+
+            else {
+
+
+                message.innerText =
+                    "Login failed: " +
+                    error.message;
+
+            }
+
+
+
+            loginButton.disabled = false;
+
+            loginButton.innerText =
+                "Login";
+
+        }
+
+
+    });
+
+
+</script>
+
+
+</body>
+
+</html>

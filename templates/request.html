@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Requests</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+body{
+
+    background-image:url("/static/bg.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+
+    min-height:100vh;
+
+    padding:50px;
+
+}
+
+.container{
+
+    width:90%;
+
+    margin:auto;
+
+    background:rgba(255,255,255,0.95);
+
+    padding:40px;
+
+    border-radius:20px;
+
+    box-shadow:0px 10px 30px rgba(0,0,0,0.2);
+
+}
+
+h1{
+
+    text-align:center;
+
+    color:#24135F;
+
+    font-size:40px;
+
+    margin-bottom:40px;
+
+}
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+th{
+
+    background:#24135F;
+
+    color:white;
+
+    padding:18px;
+
+    font-size:18px;
+
+}
+
+td{
+
+    text-align:center;
+
+    padding:20px;
+
+    border-bottom:1px solid #ddd;
+
+}
+
+tr:hover{
+
+    background:#f8f9fc;
+
+}
+
+.pending{
+
+    color:#ff9800;
+
+    font-weight:bold;
+
+    font-size:17px;
+
+}
+
+.accepted{
+
+    color:green;
+
+    font-weight:bold;
+
+    font-size:17px;
+
+}
+
+.rejected{
+
+    color:red;
+
+    font-weight:bold;
+
+    font-size:17px;
+
+}
+
+.accept{
+
+    background:#28a745;
+
+    color:white;
+
+    border:none;
+
+    padding:12px 20px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+}
+
+.accept:hover{
+
+    background:#1f8a37;
+
+}
+
+.reject{
+
+    background:#dc3545;
+
+    color:white;
+
+    border:none;
+
+    padding:12px 20px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+}
+
+.reject:hover{
+
+    background:#b52a37;
+
+}
+
+.connected{
+
+    color:green;
+
+    font-weight:bold;
+
+    font-size:18px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>
+
+Requests
+
+</h1>
+
+<table>
+
+<tr>
+
+<th>
+
+Student Name
+
+</th>
+
+<th>
+
+Status
+
+</th>
+
+<th>
+
+Accept
+
+</th>
+
+<th>
+
+Reject
+
+</th>
+
+</tr>
+
+
+{% for req in requests %}
+
+<tr>
+
+<td>
+
+{{req.name}}
+
+</td>
+
+
+<td>
+
+{% if req.status == 'Pending' %}
+
+<span class="pending">
+
+Pending
+
+</span>
+
+{% elif req.status == 'Accepted' %}
+
+<span class="accepted">
+
+Accepted
+
+</span>
+
+{% else %}
+
+<span class="rejected">
+
+Rejected
+
+</span>
+
+{% endif %}
+
+</td>
+
+
+<td>
+
+{% if req.status == 'Pending' %}
+
+<form action="/accept_request/{{req.id}}" method="POST">
+
+<button class="accept">
+
+Accept
+
+</button>
+
+</form>
+
+{% elif req.status == 'Accepted' %}
+
+<span class="connected">
+
+Connected
+
+</span>
+
+{% endif %}
+
+</td>
+
+
+<td>
+
+{% if req.status == 'Pending' %}
+
+<form action="/reject_request/{{req.id}}" method="POST">
+
+<button class="reject">
+
+Reject
+
+</button>
+
+</form>
+
+{% endif %}
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
+
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Add Skills</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Poppins',sans-serif;
+}
+
+body{
+
+min-height:100vh;
+
+display:flex;
+justify-content:center;
+align-items:center;
+
+background-image:url("/static/bg.jpg");
+background-size:cover;
+background-position:center;
+background-repeat:no-repeat;
+
+}
+
+.container{
+
+width:700px;
+
+background:rgba(255,255,255,0.95);
+
+padding:50px;
+
+border-radius:25px;
+
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+
+}
+
+h1{
+
+text-align:center;
+
+color:#24135F;
+
+margin-bottom:15px;
+
+}
+
+.subtitle{
+
+text-align:center;
+
+color:gray;
+
+margin-bottom:40px;
+
+}
+
+label{
+
+font-size:18px;
+
+font-weight:600;
+
+color:#24135F;
+
+}
+
+.row{
+
+display:flex;
+
+gap:15px;
+
+margin-top:15px;
+
+margin-bottom:20px;
+
+}
+
+select{
+
+flex:1;
+
+padding:15px;
+
+border:none;
+
+border-radius:12px;
+
+background:#f5f5f5;
+
+font-size:16px;
+
+}
+
+.add-btn{
+
+padding:15px 25px;
+
+background:#24135F;
+
+color:white;
+
+border:none;
+
+border-radius:12px;
+
+cursor:pointer;
+
+}
+
+.skill-box{
+
+min-height:90px;
+
+padding:15px;
+
+background:#f8f9fc;
+
+border-radius:15px;
+
+margin-bottom:30px;
+
+box-shadow:0 5px 15px rgba(0,0,0,0.1);
+
+}
+
+.skill-tag{
+
+display:inline-block;
+
+background:#24135F;
+
+color:white;
+
+padding:10px 18px;
+
+border-radius:25px;
+
+margin:8px;
+
+}
+
+.save-btn{
+
+width:100%;
+
+padding:18px;
+
+background:#24135F;
+
+color:white;
+
+border:none;
+
+border-radius:15px;
+
+font-size:18px;
+
+cursor:pointer;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Add Skills</h1>
+
+<p class="subtitle">
+
+Select the skills you can teach and the skills you want to learn
+
+</p>
+
+<form action="/add_skill" method="POST">
+
+<label>
+
+Skills I Can Teach
+
+</label>
+
+<div class="row">
+
+<select id="teachSelect">
+
+<option>Mathematics</option>
+<option>General knowledge</option>
+<option>Painting</option>
+<option>Creative Writing</option>
+<option>Science</option>
+<option>Drawing</option>
+<option>Singing</option>
+<option>Video Editing</option>
+<option>Quiz practice</option>
+<option>Photography</option>
+<option>guitar basics</option>
+<option>Public speaking</option>
+<option>Drama & story telling</option>
+<option>Hindi</option>
+<option>English</option>
+<option>Reasoning</option>
+<option>Python</option>
+<option>Java</option>
+<option>C++</option>
+<option>JavaScript</option>
+<option>React</option>
+<option>MATLAB</option>
+<option>AutoCAD</option>
+<option>SolidWorks</option>
+<option>ANSYS</option>
+<option>Fusion 360</option>
+<option>Figma</option>
+<option>UI/UX Design</option>
+<option>Canva</option>
+<option>Adobe Photoshop</option>
+<option>Video Editing</option>
+<option>Research Methodology</option>
+<option>Technical Writing</option>
+<option>LaTeX</option>
+<option>Thesis Writing</option>
+<option>Presentation Design</option>
+<option>Resume Building</option>
+<option>Aptitude Training</option>
+<option>Coding Interview Preparation</option>
+<option>Mock Interviews</option>
+<option>HR Interview Preparation</option>
+<option>Leadership</option>
+<option>Time Management</option>
+<option>Critical Thinking</option>
+<option>Problem Solving</option>
+<option>Public Speaking</option>
+
+
+
+</select>
+
+<button
+type="button"
+class="add-btn"
+onclick="addTeachSkill()">
+
+Add
+
+</button>
+
+</div>
+
+<div class="skill-box" id="teachBox">
+
+</div>
+
+
+
+<label>
+
+Skills I Want To Learn
+
+</label>
+
+<div class="row">
+
+<select id="learnSelect">
+
+<option>Mathematics</option>
+<option>General knowledge</option>
+<option>Painting</option>
+<option>Creative Writing</option>
+<option>Science</option>
+<option>Drawing</option>
+<option>Singing</option>
+<option>Video Editing</option>
+<option>Quiz practice</option>
+<option>Photography</option>
+<option>guitar basics</option>
+<option>Public speaking</option>
+<option>Drama & story telling</option>
+<option>Hindi</option>
+<option>English</option>
+<option>Reasoning</option>
+<option>Python</option>
+<option>Java</option>
+<option>C++</option>
+<option>JavaScript</option>
+<option>React</option>
+<option>MATLAB</option>
+<option>AutoCAD</option>
+<option>SolidWorks</option>
+<option>ANSYS</option>
+<option>Fusion 360</option>
+<option>Figma</option>
+<option>UI/UX Design</option>
+<option>Canva</option>
+<option>Adobe Photoshop</option>
+<option>Video Editing</option>
+<option>Research Methodology</option>
+<option>Technical Writing</option>
+<option>LaTeX</option>
+<option>Thesis Writing</option>
+<option>Presentation Design</option>
+<option>Resume Building</option>
+<option>Aptitude Training</option>
+<option>Coding Interview Preparation</option>
+<option>Mock Interviews</option>
+<option>HR Interview Preparation</option>
+<option>Leadership</option>
+<option>Time Management</option>
+<option>Critical Thinking</option>
+<option>Problem Solving</option>
+<option>Public Speaking</option>
+</select>
+
+<button
+type="button"
+class="add-btn"
+onclick="addLearnSkill()">
+
+Add
+
+</button>
+
+</div>
+
+<div class="skill-box" id="learnBox">
+
+</div>
+
+<button
+type="submit"
+class="save-btn">
+
+Save Skills
+
+</button>
+
+</form>
+
+</div>
+
+
+
+<script>
+
+function addTeachSkill(){
+
+let select=document.getElementById("teachSelect");
+
+let value=select.value;
+
+let box=document.getElementById("teachBox");
+
+let tag=document.createElement("span");
+
+tag.className="skill-tag";
+
+tag.innerHTML=value;
+
+box.appendChild(tag);
+
+let input=document.createElement("input");
+
+input.type="hidden";
+
+input.name="teach_skills";
+
+input.value=value;
+
+box.appendChild(input);
+
+}
+
+
+function addLearnSkill(){
+
+let select=document.getElementById("learnSelect");
+
+let value=select.value;
+
+let box=document.getElementById("learnBox");
+
+let tag=document.createElement("span");
+
+tag.className="skill-tag";
+
+tag.innerHTML=value;
+
+box.appendChild(tag);
+
+let input=document.createElement("input");
+
+input.type="hidden";
+
+input.name="learn_skills";
+
+input.value=value;
+
+box.appendChild(input);
+
+}
+
+</script>
+
+</body>
+</html>
+

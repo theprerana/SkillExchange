@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Chat</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Poppins',sans-serif;
+}
+
+body{
+
+background-image:url("/static/bg.jpg");
+background-size:cover;
+background-position:center;
+
+height:100vh;
+
+display:flex;
+justify-content:center;
+align-items:center;
+
+}
+
+.chat-container{
+
+width:700px;
+
+height:600px;
+
+background:white;
+
+border-radius:20px;
+
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+
+display:flex;
+
+flex-direction:column;
+
+overflow:hidden;
+
+}
+
+.header{
+
+background:#24135F;
+
+color:white;
+
+padding:20px;
+
+font-size:24px;
+
+font-weight:600;
+
+}
+
+.messages{
+
+flex:1;
+
+padding:20px;
+
+overflow-y:auto;
+
+background:#f4f4f4;
+
+}
+
+.sent{
+
+background:#24135F;
+
+color:white;
+
+padding:12px 18px;
+
+border-radius:15px;
+
+width:max-content;
+
+margin-left:auto;
+
+margin-bottom:15px;
+
+max-width:70%;
+
+}
+
+.received{
+
+background:white;
+
+padding:12px 18px;
+
+border-radius:15px;
+
+margin-bottom:15px;
+
+max-width:70%;
+
+box-shadow:0 2px 8px rgba(0,0,0,0.1);
+
+}
+
+.input-area{
+
+display:flex;
+
+padding:20px;
+
+background:white;
+
+gap:15px;
+
+}
+
+input{
+
+flex:1;
+
+padding:15px;
+
+border:1px solid #ddd;
+
+border-radius:12px;
+
+font-size:16px;
+
+}
+
+button{
+
+background:#24135F;
+
+color:white;
+
+border:none;
+
+padding:15px 25px;
+
+border-radius:12px;
+
+cursor:pointer;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="chat-container">
+
+<div class="header">
+
+Chat
+
+</div>
+
+<div class="messages">
+
+{% for msg in messages %}
+
+{% if msg.sender_id == session['student_id'] %}
+
+<div class="sent">
+
+{{msg.message}}
+
+</div>
+
+{% else %}
+
+<div class="received">
+
+{{msg.message}}
+
+</div>
+
+{% endif %}
+
+{% endfor %}
+
+</div>
+
+<form method="POST" class="input-area">
+
+<input
+type="text"
+name="message"
+placeholder="Type your message..."
+required>
+
+<button>
+
+Send
+
+</button>
+
+</form>
+
+</div>
+
+</body>
+</html>
+```

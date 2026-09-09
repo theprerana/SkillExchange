@@ -1,0 +1,460 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<title>Skill Exchange Platform</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Segoe UI',sans-serif;
+}
+
+
+body{
+    margin:0;
+    padding:0;
+    min-height:100vh;
+
+    background-image: url("/static/bg.jpg");
+
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+
+
+header{
+    width:100%;
+    height:90px;
+    background:white;
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 35PX;
+    font-weight: bold;
+    
+    gap: 15px;
+    
+
+    display:flex;
+    align-items:center;
+
+    position:fixed;
+    top:0;
+    z-index:1000;
+
+    padding:0 60px;
+}
+
+.logo{
+    font-size:30px;
+    font-weight:bold;
+    color:#24135F;
+}
+
+nav{
+    flex:1;
+    text-align:center;
+    font-size: 35px;
+}
+
+nav a{
+    text-decoration:none;
+    color:black;
+    margin:0 25px;
+    font-size:30px;
+}
+
+.buttons{
+    position:absolute;
+    right:10px;
+}
+
+.btn{
+    text-decoration:none;
+    background:#24135F;
+    color:white !important;
+    font-size: 25px;
+    font-style: italic;
+
+    padding:12px 45px;
+    border-radius:8px;
+
+    margin-left:15px;
+}
+
+
+.slider{
+width:300%;
+display:flex;
+transition:1s;
+}
+
+
+.slide{
+    width:100vw;
+    height:100vh;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding-left:100px;
+    padding-right:120px;
+
+    background-image:url("/static/bg.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+}
+
+
+
+
+
+.left{
+    width:45%;
+    margin-left:40px;
+}
+
+.left h1{
+    font-size:70px;
+    line-height:1.2;
+    color:#111827;
+    margin-bottom:30px;
+}
+
+.left p{
+    font-size:26px;
+    color:gray;
+    line-height:1.6;
+    margin-bottom:20px;
+}
+
+
+
+.start-btn{
+background:#24135F;
+color:white;
+text-decoration:none;
+padding:18px 40px;
+border-radius:14px;
+font-size:22px;
+margin-top:80px;
+}
+
+
+.right{
+    width:45%;
+    display:flex;
+    justify-content:flex-end;
+}
+
+.right img{
+    width:550px;
+    margin-right:40px;
+}
+
+
+
+.slide1{
+background-image:url("/static/bg1.jpg");
+background-size:cover;
+background-position:center
+.slide{
+    position:relative;
+    overflow:hidden;
+}
+
+.slide::before{
+    content:"";
+    position:absolute;
+    width:400px;
+    height:400px;
+    background:#eef2ff;
+    border-radius:50%;
+    top:-150px;
+    right:-150px;
+}
+
+.slide::after{
+    content:"";
+    position:absolute;
+    width:300px;
+    height:300px;
+    background:#f8fafc;
+    border-radius:50%;
+    bottom:-120px;
+    left:-120px;
+}
+}
+
+.slide2{
+background-image:url("/static/bg1.jpg");
+background-size:cover;
+background-position:center
+.slide{
+    position:relative;
+    overflow:hidden;
+}
+
+.slide::before{
+    content:"";
+    position:absolute;
+    width:400px;
+    height:400px;
+    background:#eef2ff;
+    border-radius:50%;
+    top:-150px;
+    right:-150px;
+}
+
+.slide::after{
+    content:"";
+    position:absolute;
+    width:300px;
+    height:300px;
+    background:#f8fafc;
+    border-radius:50%;
+    bottom:-120px;
+    left:-120px;
+}
+}
+
+.slide3{
+background-image:url("/static/bg1.jpg");
+background-size:cover;
+background-position:center
+.slide{
+    position:relative;
+    overflow:hidden;
+}
+
+.slide::before{
+    content:"";
+    position:absolute;
+    width:400px;
+    height:400px;
+    background:#eef2ff;
+    border-radius:50%;
+    top:-150px;
+    right:-150px;
+}
+
+.slide::after{
+    content:"";
+    position:absolute;
+    width:300px;
+    height:300px;
+    background:#f8fafc;
+    border-radius:50%;
+    bottom:-120px;
+    left:-120px;
+}
+}
+
+
+.active{
+background:#24135F;
+}
+
+</style>
+
+</head>
+<body>
+
+
+<header>
+
+<div class="logo">
+    Skill Exchange
+</div>
+
+<nav>
+
+    
+
+<a href="/about">About</a>
+<a href="/features">Features</a>
+<a href="/students">Students</a>
+<a href="/contact">Contact</a>
+
+
+</nav>
+
+<div class="buttons">
+
+    <a href="/register" class="btn">
+        Register
+    </a>
+
+    <a href="/login" class="btn">
+        Login
+    </a>
+
+</div>
+
+</header>
+
+
+
+<div class="slider" id="slider">
+
+<div class="slide slide1">
+
+<div class="left">
+
+<h1>
+Empowering Students Through Skill Exchange
+</h1>
+
+<p>
+
+Connect with students, teach what you know,
+and learn new technologies from peers inside
+your campus community.
+
+</p>
+
+<a href="/register" class="btn">
+Get Started
+</a>
+
+</div>
+
+<div class="right">
+
+<img src="https://cdn-icons-png.flaticon.com/512/3135/3135789.png">
+
+</div>
+
+</div>
+
+<!-- Slide 2 -->
+
+<div class="slide slide2">
+
+<div class="left">
+
+<h1>
+Connecting Skilled Talent With Industry
+</h1>
+
+<p>
+
+Skill Exchange is a one-of-a-kind platform that
+provides talented and skilled students with a
+smooth transition from college to the
+professional world.
+
+</p>
+
+<a href="/register" class="btn">
+Get Started
+</a>
+
+</div>
+
+<div class="right">
+
+<img src="https://cdn-icons-png.flaticon.com/512/4140/4140047.png">
+
+</div>
+
+</div>
+
+
+<!-- Slide 3 -->
+
+<div class="slide slide3">
+
+<div class="left">
+
+<h1>
+Learn. Teach. Grow Together.
+</h1>
+
+<p>
+
+Exchange knowledge with peers, develop
+meaningful connections, and build your
+professional network through collaborative
+learning.
+
+</p>
+
+<br>
+
+<h2 style="color:#24135F; line-height:2;">
+✓ Learn From Peers<br>
+✓ Teach Your Skills<br>
+✓ Build Connections<br>
+✓ Expand Your Network
+</h2>
+
+<br><br>
+
+<a href="/register" class="start-btn">
+Join Now
+</a>
+
+</div>
+
+<div class="right">
+
+<img src="https://cdn-icons-png.flaticon.com/512/3048/3048122.png">
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="dots">
+
+<span class="dot active"></span>
+<span class="dot"></span>
+<span class="dot"></span>
+
+</div>
+
+
+<script>
+
+let slider = document.getElementById("slider");
+
+let dots = document.getElementsByClassName("dot");
+
+let count = 0;
+
+setInterval(function(){
+
+count++;
+
+if(count > 2)
+{
+count = 0;
+}
+
+slider.style.transform =
+"translateX(-"+count*100+"vw)";
+
+for(let i=0;i<dots.length;i++)
+{
+dots[i].classList.remove("active");
+}
+
+dots[count].classList.add("active");
+
+},4000);
+
+</script>
+
+</body>
+</html>
+
+
