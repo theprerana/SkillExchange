@@ -1,155 +1,213 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>Chat</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
+rel="stylesheet">
 
 <style>
 
 *{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:'Poppins',sans-serif;
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
 }
 
 body{
 
-background-image:url("/static/bg.jpg");
-background-size:cover;
-background-position:center;
+    background-image:url("/static/bg.jpg");
+    background-size:cover;
+    background-position:center;
 
-height:100vh;
+    min-height:100vh;
 
-display:flex;
-justify-content:center;
-align-items:center;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    padding:30px;
 
 }
 
 .chat-container{
 
-width:700px;
+    width:800px;
 
-height:600px;
+    height:700px;
 
-background:white;
+    background:white;
 
-border-radius:20px;
+    border-radius:20px;
 
-box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    box-shadow:0 10px 30px rgba(0,0,0,0.2);
 
-display:flex;
+    display:flex;
 
-flex-direction:column;
+    flex-direction:column;
 
-overflow:hidden;
+    overflow:hidden;
 
 }
 
 .header{
 
-background:#24135F;
+    background:#24135F;
 
-color:white;
+    color:white;
 
-padding:20px;
+    padding:20px;
 
-font-size:24px;
+    font-size:24px;
 
-font-weight:600;
+    font-weight:600;
+
+    text-align:center;
 
 }
 
+
+/* MESSAGE AREA */
+
 .messages{
 
-flex:1;
+    flex:1;
 
-padding:20px;
+    padding:20px;
 
-overflow-y:auto;
+    overflow-y:auto;
 
-background:#f4f4f4;
+    background:#f4f4f4;
 
 }
 
 .sent{
 
-background:#24135F;
+    background:#24135F;
 
-color:white;
+    color:white;
 
-padding:12px 18px;
+    padding:12px 18px;
 
-border-radius:15px;
+    border-radius:15px;
 
-width:max-content;
+    width:max-content;
 
-margin-left:auto;
+    margin-left:auto;
 
-margin-bottom:15px;
+    margin-bottom:15px;
 
-max-width:70%;
+    max-width:70%;
 
 }
 
 .received{
 
-background:white;
+    background:white;
 
-padding:12px 18px;
+    padding:12px 18px;
 
-border-radius:15px;
+    border-radius:15px;
 
-margin-bottom:15px;
+    margin-bottom:15px;
 
-max-width:70%;
+    max-width:70%;
 
-box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
 
 }
+
+
+/* MESSAGE INPUT */
 
 .input-area{
 
-display:flex;
+    display:flex;
 
-padding:20px;
+    padding:15px;
 
-background:white;
+    background:white;
 
-gap:15px;
-
-}
-
-input{
-
-flex:1;
-
-padding:15px;
-
-border:1px solid #ddd;
-
-border-radius:12px;
-
-font-size:16px;
+    gap:10px;
 
 }
 
-button{
+.input-area input{
 
-background:#24135F;
+    flex:1;
 
-color:white;
+    padding:15px;
 
-border:none;
+    border:1px solid #ddd;
 
-padding:15px 25px;
+    border-radius:12px;
 
-border-radius:12px;
+    font-size:16px;
 
-cursor:pointer;
+}
+
+.input-area button{
+
+    background:#24135F;
+
+    color:white;
+
+    border:none;
+
+    padding:15px 25px;
+
+    border-radius:12px;
+
+    cursor:pointer;
+
+}
+
+
+/* VIDEO BUTTON */
+
+.video-button{
+
+    margin:0 15px 15px 15px;
+
+    padding:14px;
+
+    background:#28a745;
+
+    color:white;
+
+    border:none;
+
+    border-radius:12px;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+}
+
+.video-button:hover{
+
+    background:#218838;
+
+}
+
+
+/* JITSI AREA */
+
+#jitsi-container{
+
+    display:none;
+
+    width:100%;
+
+    height:400px;
+
+    background:#111;
 
 }
 
@@ -157,60 +215,172 @@ cursor:pointer;
 
 </head>
 
+
 <body>
+
 
 <div class="chat-container">
 
-<div class="header">
 
-Chat
+    <div class="header">
+
+        Chat
+
+    </div>
+
+
+    <!-- JITSI VIDEO CALL -->
+
+    <div id="jitsi-container"></div>
+
+
+    <!-- MESSAGES -->
+
+    <div class="messages">
+
+        {% for msg in messages %}
+
+            {% if msg.sender_id == session['student_id'] %}
+
+                <div class="sent">
+
+                    {{msg.message}}
+
+                </div>
+
+            {% else %}
+
+                <div class="received">
+
+                    {{msg.message}}
+
+                </div>
+
+            {% endif %}
+
+        {% endfor %}
+
+    </div>
+
+
+    <!-- MESSAGE INPUT -->
+
+    <form method="POST" class="input-area">
+
+        <input
+            type="text"
+            name="message"
+            placeholder="Type your message..."
+            required>
+
+        <button type="submit">
+
+            Send
+
+        </button>
+
+    </form>
+
+
+    <!-- VIDEO CALL BUTTON -->
+
+    <button
+        type="button"
+        class="video-button"
+        onclick="startVideoCall()">
+
+        📹 Start Video Call
+
+    </button>
+
 
 </div>
 
-<div class="messages">
 
-{% for msg in messages %}
+<!-- JITSI EXTERNAL API -->
 
-{% if msg.sender_id == session['student_id'] %}
+<script src="https://meet.jit.si/external_api.js"></script>
 
-<div class="sent">
 
-{{msg.message}}
+<script>
 
-</div>
+let jitsiApi = null;
 
-{% else %}
 
-<div class="received">
+function startVideoCall(){
 
-{{msg.message}}
+    const container = document.getElementById("jitsi-container");
 
-</div>
 
-{% endif %}
+    // Show video area
 
-{% endfor %}
+    container.style.display = "block";
 
-</div>
 
-<form method="POST" class="input-area">
+    // Prevent creating multiple Jitsi sessions
 
-<input
-type="text"
-name="message"
-placeholder="Type your message..."
-required>
+    if(jitsiApi !== null){
 
-<button>
+        return;
 
-Send
+    }
 
-</button>
 
-</form>
+    jitsiApi = new JitsiMeetExternalAPI(
 
-</div>
+        "meet.jit.si",
+
+        {
+
+            roomName: "{{ room_name }}",
+
+            parentNode: container,
+
+            width: "100%",
+
+            height: "400px",
+
+            configOverwrite: {
+
+                startWithAudioMuted: false,
+
+                startWithVideoMuted: false
+
+            },
+
+            interfaceConfigOverwrite: {
+
+                SHOW_JITSI_WATERMARK: false,
+
+                SHOW_WATERMARK_FOR_GUESTS: false,
+
+                TOOLBAR_BUTTONS: [
+
+                    "microphone",
+
+                    "camera",
+
+                    "chat",
+
+                    "desktop",
+
+                    "fullscreen",
+
+                    "hangup"
+
+                ]
+
+            }
+
+        }
+
+    );
+
+}
+
+</script>
+
 
 </body>
+
 </html>
-```

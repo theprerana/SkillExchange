@@ -1,9 +1,15 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
+import firebase_admin
+from firebase_admin import credentials, auth
 
 app = Flask(__name__)
 app.secret_key = "skill_exchange_secret"
+
+# Firebase Admin SDK
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase-service-account.json")
+    firebase_admin.initialize_app(cred)
 
 
 # Database connection
@@ -21,12 +27,12 @@ cursor = conn.cursor()
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS students(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    firebase_uid TEXT UNIQUE,
     name TEXT,
     roll_no TEXT,
     email TEXT UNIQUE,
     department TEXT,
-    year INTEGER,
-    password TEXT
+    year INTEGER
 )
 ''')
 
@@ -70,29 +76,18 @@ CREATE TABLE IF NOT EXISTS messages(
 
 )
 ''')
-
 conn.commit()
-conn.close()
 
-
-
-# ADD THIS PART ONLY ONCE
 try:
-
     cursor.execute("""
-    ALTER TABLE exchange_requests
-    ADD COLUMN skill_name TEXT
+        ALTER TABLE exchange_requests
+        ADD COLUMN skill_name TEXT
     """)
-
     conn.commit()
-
-except:
-
+except sqlite3.OperationalError:
     pass
 
-
 conn.close()
-
 
 
 # Home
@@ -101,75 +96,196 @@ def home():
     return render_template('index.html')
 
 
-# Register
-@app.route('/register', methods=['GET', 'POST'])
+
+# REGISTER
+
+# REGISTER
+
+@app.route('/register', methods=['GET'])
 def register():
-
-    if request.method == 'POST':
-
-        name = request.form['name']
-        roll_no = request.form['roll_no']
-        email = request.form['email']
-        department = request.form['department']
-        year = request.form['year']
-        password = generate_password_hash(request.form['password'])
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute(
-                '''
-                INSERT INTO students(name, roll_no, email, department, year, password)
-                VALUES(?,?,?,?,?,?)
-                ''',
-                (name, roll_no, email, department, year, password)
-            )
-
-            conn.commit()
-
-        except sqlite3.IntegrityError:
-            conn.close()
-            return "Email already exists"
-
-        conn.close()
-
-        return redirect('/login')
-
     return render_template('register.html')
 
 
-# Login
-@app.route('/login', methods=['GET', 'POST'])
+# LOGIN
+
+@app.route('/login', methods=['GET'])
 def login():
+    return render_template('login.html')
 
-    if request.method == 'POST':
 
-        email = request.form['email']
-        password = request.form['password']
+# SAVE STUDENT PROFILE TO SQLITE
 
+# SAVE STUDENT PROFILE TO SQLITE
+
+
+@app.route('/save-student', methods=['POST'])
+def save_student():
+
+    data = request.get_json()
+
+    id_token = data.get('id_token')
+
+    name = data.get('name')
+    roll_no = data.get('roll_no')
+    department = data.get('department')
+    year = data.get('year')
+
+    if not id_token:
+        return {
+            "success": False,
+            "message": "Firebase ID token is missing."
+        }
+
+    try:
+        decoded_token = auth.verify_id_token(id_token)
+
+        firebase_uid = decoded_token['uid']
+        email = decoded_token.get('email')
+
+    except Exception as e:
+        print("Firebase registration error:", e)
+
+        return {
+            "success": False,
+            "message": "Invalid Firebase authentication."
+        }
+
+    if not name or not roll_no or not email:
+        return {
+            "success": False,
+            "message": "Required student information is missing."
+        }
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute(
+            '''
+            INSERT INTO students
+            (
+                firebase_uid,
+                name,
+                roll_no,
+                email,
+                department,
+                year
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                firebase_uid,
+                name,
+                roll_no,
+                email,
+                department,
+                year
+            )
+        )
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "message": "Student profile saved successfully."
+        }
+
+    except sqlite3.IntegrityError:
+
+        return {
+            "success": False,
+            "message": "Email or Roll Number already exists."
+        }
+
+    except Exception as e:
+
+        print("Database error:", e)
+
+        return {
+            "success": False,
+            "message": "Failed to save student profile."
+        }
+
+    finally:
+        conn.close()
+
+# ============================================================
+# FIREBASE LOGIN
+# ============================================================
+
+@app.route('/firebase-login', methods=['POST'])
+def firebase_login():
+
+    data = request.get_json()
+
+    id_token = data.get('id_token')
+
+    if not id_token:
+        return {
+            "success": False,
+            "message": "Firebase ID token missing."
+        }
+
+    try:
+
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(id_token)
+
+        # Get the real Firebase UID
+        firebase_uid = decoded_token['uid']
+
+        # Get Firebase user
+        firebase_user = auth.get_user(firebase_uid)
+
+        # Check email verification
+        if not firebase_user.email_verified:
+            return {
+                "success": False,
+                "message": "Please verify your email before logging in."
+            }
+
+        # Find student in SQLite
         conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT * FROM students WHERE email=?",
-            (email,)
+            '''
+            SELECT *
+            FROM students
+            WHERE firebase_uid=?
+            ''',
+            (firebase_uid,)
         )
 
         student = cursor.fetchone()
 
         conn.close()
 
-        if student and check_password_hash(student['password'], password):
+        if not student:
+            return {
+                "success": False,
+                "message": "Student profile not found."
+            }
 
-            session['student_id'] = student['id']
-            session['name'] = student['name']
+        # Create Flask session
+        session['student_id'] = student['id']
+        session['name'] = student['name']
+        session['firebase_uid'] = firebase_uid
 
-            return redirect('/dashboard')
+        return {
+            "success": True,
+            "message": "Login successful."
+        }
 
-        return "Invalid Email or Password"
+    except Exception as e:
 
-    return render_template('login.html')
+        print("Firebase login error:", e)
+
+        return {
+            "success": False,
+            "message": "Invalid Firebase authentication."
+        }
 
 
 # Dashboard
@@ -619,10 +735,17 @@ def chat(id):
 
     conn.close()
 
+    # Create a unique Jitsi room for this pair of connected students.
+    # Sorting the IDs ensures both users get exactly the same room name.
+    user1 = min(session['student_id'], id)
+    user2 = max(session['student_id'], id)
+    room_name = f"SkillExchange-{user1}-{user2}"
+
     return render_template(
         'chat.html',
         messages=messages,
-        receiver_id=id
+        receiver_id=id,
+        room_name=room_name
     )
 
 
@@ -722,7 +845,23 @@ def my_skills():
         'my_skills.html',
         skills=skills
     )
+# Existing routes...
 
+@app.route('/about')
+def about():
+    return render_template("about.html")
+
+@app.route('/features')
+def features():
+    return render_template("features.html")
+
+@app.route('/students')
+def students():
+    return render_template("students.html")
+
+@app.route('/contact')
+def contact():
+    return render_template("contact.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
