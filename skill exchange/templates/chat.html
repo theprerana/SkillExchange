@@ -385,6 +385,60 @@ body {
     z-index: 10;
 }
 
+#jitsi-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #1E1B4B;
+    color: #EDE9FE;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.4);
+    font-size: 13px;
+    font-weight: 500;
+    height: 42px;
+}
+
+.jitsi-bar-btn {
+    color: #EDE9FE;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 5px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.jitsi-bar-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.jitsi-bar-btn.danger {
+    background: #DC2626;
+    color: white;
+}
+
+.jitsi-bar-btn.danger:hover {
+    background: #B91C1C;
+}
+
+#jitsi-embed-area {
+    width: 100%;
+    height: calc(100% - 42px);
+    background: #000000;
+}
+
+#jitsi-embed-area iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
 /* ============================================================
    MAIN CHAT CONVERSATION AREA - LIGHTEST LAVENDAR
    ============================================================ */
@@ -826,10 +880,31 @@ body {
         <!-- CALL STATUS BANNER -->
         <div id="call-status" class="call-status-banner">
             <span id="call-status-text">Calling...</span>
+            <span id="call-status-actions" style="margin-left: 12px; display: none;">
+                <button type="button" id="joinDirectBtn" onclick="joinCallImmediately()" style="background:#10B981; color:white; border:none; padding:4px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; margin-right:6px;">
+                    <i class="fa-solid fa-video"></i> Join Room
+                </button>
+                <button type="button" id="cancelCallBtn" onclick="cancelCall()" style="background:#EF4444; color:white; border:none; padding:4px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
+                    <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+            </span>
         </div>
 
         <!-- JITSI CONTAINER (CLEAN & ZERO ADS) -->
-        <div id="jitsi-container"></div>
+        <div id="jitsi-container">
+            <div id="jitsi-topbar">
+                <span id="jitsi-topbar-title"><i class="fa-solid fa-video" style="color:#10B981; margin-right:6px;"></i> Live Video Session</span>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <a id="jitsi-external-link" href="#" target="_blank" class="jitsi-bar-btn" title="Open in new window / full screen tab">
+                        <i class="fa-solid fa-up-right-from-square"></i> Open in Tab
+                    </a>
+                    <button type="button" onclick="endCallCleanly(true)" class="jitsi-bar-btn danger" title="End Call">
+                        <i class="fa-solid fa-phone-slash"></i> End Call
+                    </button>
+                </div>
+            </div>
+            <div id="jitsi-embed-area"></div>
+        </div>
 
         <!-- MAIN MESSAGES CONTAINER - LIGHTEST LAVENDER -->
         <div class="chat-messages-container" id="messagesContainer">
@@ -1023,40 +1098,93 @@ socket.on("receive_message", function(data) {
 });
 
 /* ============================================================
-   3. JITSI VIDEO CALL (100% CLEAN - NO PROMO ADS / REDIRECTS)
+   3. JITSI VIDEO CALL (ROBUST, CLEAN & RELIABLE)
    ============================================================ */
-function showCallStatus(msg) {
+const defaultRoomName = {{ room_name|tojson }};
+const currentStudentName = {{ session.get('name', 'Student')|tojson }};
+let callTimeout = null;
+
+function showCallStatus(msg, showJoinBtn, showCancelBtn) {
     const banner = document.getElementById("call-status");
     document.getElementById("call-status-text").innerText = msg;
+    const actions = document.getElementById("call-status-actions");
+    const joinBtn = document.getElementById("joinDirectBtn");
+    const cancelBtn = document.getElementById("cancelCallBtn");
+    
+    if (showJoinBtn || showCancelBtn) {
+        actions.style.display = "inline-flex";
+        joinBtn.style.display = showJoinBtn ? "inline-flex" : "none";
+        cancelBtn.style.display = showCancelBtn ? "inline-flex" : "none";
+    } else {
+        actions.style.display = "none";
+    }
     banner.style.display = "block";
 }
 
 function hideCallStatus() {
-    document.getElementById("call-status").style.display = "none";
+    const banner = document.getElementById("call-status");
+    if (banner) banner.style.display = "none";
+    if (callTimeout) {
+        clearTimeout(callTimeout);
+        callTimeout = null;
+    }
 }
 
 // Start Call (Student A)
 function startCall() {
     if (currentCallId) return;
     currentCallId = "calling";
-    showCallStatus("📞 Calling peer...");
+    currentRoomName = defaultRoomName;
+    showCallStatus("📞 Calling peer...", true, true);
     socket.emit("start_call", { receiver_id: receiverId });
+
+    // After 6 seconds, suggest joining directly if peer hasn't answered yet
+    callTimeout = setTimeout(function() {
+        if (currentCallId === "calling") {
+            showCallStatus("Peer has not answered yet. You can join directly:", true, true);
+        }
+    }, 6000);
+}
+
+// Join directly without waiting
+function joinCallImmediately() {
+    if (callTimeout) clearTimeout(callTimeout);
+    showCallStatus("Connecting to video room...", false, false);
+    startJitsiCall(currentRoomName || defaultRoomName);
+}
+
+// Cancel Call (Student A)
+function cancelCall() {
+    if (callTimeout) clearTimeout(callTimeout);
+    socket.emit("cancel_call", { receiver_id: receiverId });
+    currentCallId = null;
+    currentRoomName = null;
+    hideCallStatus();
 }
 
 // Incoming Call (Student B)
 socket.on("incoming_call", function(data) {
     currentCallId = data.call_id;
-    currentRoomName = data.room_name;
-    document.getElementById("caller-text").innerText = data.caller_name + " is video calling you...";
+    currentRoomName = data.room_name || defaultRoomName;
+    document.getElementById("caller-text").innerText = (data.caller_name || "Peer") + " is video calling you...";
     document.getElementById("incoming-call-overlay").style.display = "flex";
+});
+
+// Call Cancelled by Caller
+socket.on("call_cancelled", function() {
+    document.getElementById("incoming-call-overlay").style.display = "none";
+    currentCallId = null;
+    currentRoomName = null;
+    hideCallStatus();
 });
 
 // Accept Call (Student B)
 function acceptCall() {
     if (!currentCallId) return;
     document.getElementById("incoming-call-overlay").style.display = "none";
-    showCallStatus("Connecting video call...");
+    showCallStatus("Connecting video call...", false, false);
     socket.emit("accept_call", { call_id: currentCallId });
+    startJitsiCall(currentRoomName || defaultRoomName);
 }
 
 // Reject Call (Student B)
@@ -1071,53 +1199,73 @@ function rejectCall() {
 
 // Peer Accepted (Student A & B connect)
 socket.on("call_accepted", function(data) {
+    if (callTimeout) clearTimeout(callTimeout);
     currentCallId = data.call_id;
-    currentRoomName = data.room_name;
-    showCallStatus("Video call connected");
-    startJitsiCall(data.room_name);
+    currentRoomName = data.room_name || defaultRoomName;
+    showCallStatus("Video call connected", false, false);
+    startJitsiCall(currentRoomName);
 });
 
 socket.on("call_connected", function(data) {
+    if (callTimeout) clearTimeout(callTimeout);
     currentCallId = data.call_id;
-    currentRoomName = data.room_name;
-    showCallStatus("Video call connected");
-    startJitsiCall(data.room_name);
+    currentRoomName = data.room_name || defaultRoomName;
+    showCallStatus("Video call connected", false, false);
+    startJitsiCall(currentRoomName);
 });
 
 // Peer Rejected
 socket.on("call_rejected", function(data) {
-    if (currentCallId !== data.call_id && currentCallId !== "calling") return;
+    if (callTimeout) clearTimeout(callTimeout);
     currentCallId = null;
     currentRoomName = null;
-    showCallStatus("❌ Call declined");
+    showCallStatus("❌ Call declined", false, false);
+    setTimeout(hideCallStatus, 3000);
+});
+
+// Call Ended by Peer
+socket.on("call_ended", function() {
+    endCallCleanly(false);
+    showCallStatus("Video call ended by peer", false, false);
     setTimeout(hideCallStatus, 3000);
 });
 
 socket.on("call_already_ringing", function() {
-    showCallStatus("Already ringing...");
+    showCallStatus("Already ringing...", true, true);
 });
 
-// Launch Jitsi with configurations that PREVENT ALL PROMOTIONAL ADS
+// Launch Jitsi with robust fallback and permission configuration
 function startJitsiCall(roomName) {
+    const rName = roomName || defaultRoomName;
+    currentRoomName = rName;
     const container = document.getElementById("jitsi-container");
+    const embedArea = document.getElementById("jitsi-embed-area");
+    const extLink = document.getElementById("jitsi-external-link");
+
     container.style.display = "block";
+    extLink.href = "https://meet.jit.si/" + encodeURIComponent(rName);
 
     if (jitsiApi !== null) return;
 
-    // Strict config to prevent any promotional landing or close page
+    embedArea.innerHTML = "";
+
+    const domain = "meet.jit.si";
     const options = {
-        roomName: roomName,
-        parentNode: container,
+        roomName: rName,
+        parentNode: embedArea,
         width: "100%",
         height: "100%",
+        userInfo: {
+            displayName: currentStudentName
+        },
         configOverwrite: {
             startWithAudioMuted: false,
             startWithVideoMuted: false,
-            enableClosePage: false,                // Disables 8x8 promotional close page
-            enableWelcomePage: false,              // Disables landing page
-            prejoinPageEnabled: false,             // Skips prejoin ad screens
-            disableDeepLinking: true,              // Prevents app store / promo banners
-            SHOW_PROMOTIONAL_CLOSE_PAGE: false     // Explicitly turn off promotional ads
+            enableClosePage: false,
+            enableWelcomePage: false,
+            prejoinPageEnabled: false,
+            disableDeepLinking: true,
+            SHOW_PROMOTIONAL_CLOSE_PAGE: false
         },
         interfaceConfigOverwrite: {
             SHOW_JITSI_WATERMARK: false,
@@ -1136,19 +1284,37 @@ function startJitsiCall(roomName) {
         }
     };
 
-    jitsiApi = new JitsiMeetExternalAPI("meet.jit.si", options);
+    let initialized = false;
+    if (typeof JitsiMeetExternalAPI !== "undefined") {
+        try {
+            jitsiApi = new JitsiMeetExternalAPI(domain, options);
+            initialized = true;
 
-    // CRITICAL: When hangup occurs, immediately dispose the iframe so no post-call ad ever renders!
-    jitsiApi.addEventListener("videoConferenceLeft", function() {
-        endCallCleanly();
-    });
+            jitsiApi.addEventListener("videoConferenceLeft", function() {
+                endCallCleanly(true);
+            });
 
-    jitsiApi.addEventListener("readyToClose", function() {
-        endCallCleanly();
-    });
+            jitsiApi.addEventListener("readyToClose", function() {
+                endCallCleanly(true);
+            });
+        } catch (err) {
+            console.warn("Jitsi Meet External API error, falling back to embedded iframe:", err);
+            initialized = false;
+        }
+    }
+
+    if (!initialized) {
+        // Direct responsive iframe fallback with full media device permissions
+        embedArea.innerHTML = `<iframe src="https://${domain}/${encodeURIComponent(rName)}#config.prejoinPageEnabled=false&userInfo.displayName=${encodeURIComponent(currentStudentName)}" allow="camera *; microphone *; fullscreen *; display-capture *; autoplay *" style="width:100%; height:100%; border:none;"></iframe>`;
+    }
+
+    hideCallStatus();
 }
 
-function endCallCleanly() {
+function endCallCleanly(notifyPeer) {
+    if (notifyPeer !== false) {
+        socket.emit("end_call", { call_id: currentCallId, receiver_id: receiverId });
+    }
     if (jitsiApi) {
         try {
             jitsiApi.dispose();
@@ -1156,12 +1322,14 @@ function endCallCleanly() {
         jitsiApi = null;
     }
     const container = document.getElementById("jitsi-container");
-    container.style.display = "none";
-    container.innerHTML = "";
-    showCallStatus("Video call ended");
-    setTimeout(hideCallStatus, 3000);
+    const embedArea = document.getElementById("jitsi-embed-area");
+
+    if (embedArea) embedArea.innerHTML = "";
+    if (container) container.style.display = "none";
+
     currentCallId = null;
     currentRoomName = null;
+    hideCallStatus();
 }
 </script>
 

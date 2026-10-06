@@ -414,12 +414,27 @@ def add_skill():
         teach_skills = request.form.getlist('teach_skills')
         learn_skills = request.form.getlist('learn_skills')
 
+        # Support custom typed skills from input fields
+        teach_custom = request.form.get('teach_custom', '').strip()
+        if teach_custom:
+            for item in teach_custom.split(','):
+                cleaned = item.strip()
+                if cleaned and cleaned not in teach_skills:
+                    teach_skills.append(cleaned)
+
+        learn_custom = request.form.get('learn_custom', '').strip()
+        if learn_custom:
+            for item in learn_custom.split(','):
+                cleaned = item.strip()
+                if cleaned and cleaned not in learn_skills:
+                    learn_skills.append(cleaned)
+
         for skill in teach_skills:
             skill = skill.strip()
             if skill:
                 cursor.execute('''
                     SELECT id FROM skills
-                    WHERE student_id=? AND skill_name=? AND skill_type='Teach'
+                    WHERE student_id=? AND LOWER(skill_name)=LOWER(?) AND skill_type='Teach'
                 ''', (session['student_id'], skill))
                 if not cursor.fetchone():
                     cursor.execute('''
@@ -432,7 +447,7 @@ def add_skill():
             if skill:
                 cursor.execute('''
                     SELECT id FROM skills
-                    WHERE student_id=? AND skill_name=? AND skill_type='Learn'
+                    WHERE student_id=? AND LOWER(skill_name)=LOWER(?) AND skill_type='Learn'
                 ''', (session['student_id'], skill))
                 if not cursor.fetchone():
                     cursor.execute('''
@@ -457,6 +472,36 @@ def add_skill():
 
     conn.close()
     return render_template('add_skill.html', teach_skills=teach_skills, learn_skills=learn_skills)
+
+
+# Edit / Update Skill
+@app.route('/edit_skill/<int:id>', methods=['POST'])
+def edit_skill(id):
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    skill_name = request.form.get('skill_name', '').strip()
+    skill_type = request.form.get('skill_type', '').strip()
+
+    if skill_name:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if skill_type in ['Teach', 'Learn']:
+            cursor.execute('''
+                UPDATE skills
+                SET skill_name=?, skill_type=?
+                WHERE id=? AND student_id=?
+            ''', (skill_name, skill_type, id, session['student_id']))
+        else:
+            cursor.execute('''
+                UPDATE skills
+                SET skill_name=?
+                WHERE id=? AND student_id=?
+            ''', (skill_name, id, session['student_id']))
+        conn.commit()
+        conn.close()
+
+    return redirect(request.referrer or '/dashboard')
 
 
 # Delete Skill
@@ -1318,6 +1363,37 @@ def handle_reject_call(data):
     )
 
     del active_calls[call_id]
+
+
+@socketio.on('cancel_call')
+def handle_cancel_call(data):
+    """Caller cancels ringing before receiver answers."""
+    caller_id = session.get('student_id')
+    if not caller_id:
+        return
+    receiver_id = data.get('receiver_id') if data else None
+    for cid, call in list(active_calls.items()):
+        if call['caller_id'] == caller_id:
+            rec_id = call.get('receiver_id') or receiver_id
+            if rec_id:
+                emit('call_cancelled', {'call_id': cid}, to=f"student_{rec_id}")
+            del active_calls[cid]
+
+
+@socketio.on('end_call')
+def handle_end_call(data):
+    """Either student hangs up the video call."""
+    student_id = session.get('student_id')
+    if not student_id:
+        return
+    receiver_id = data.get('receiver_id') if data else None
+    for cid, call in list(active_calls.items()):
+        if call['caller_id'] == student_id or call['receiver_id'] == student_id:
+            other_id = call['receiver_id'] if call['caller_id'] == student_id else call['caller_id']
+            emit('call_ended', {'call_id': cid}, to=f"student_{other_id}")
+            del active_calls[cid]
+    if receiver_id and receiver_id != student_id:
+        emit('call_ended', {}, to=f"student_{receiver_id}")
 
 
 if __name__ == "__main__":
