@@ -138,97 +138,63 @@ def login():
 # SAVE STUDENT PROFILE TO SQLITE
 
 # SAVE STUDENT PROFILE TO SQLITE
-
-
 @app.route('/save-student', methods=['POST'])
 def save_student():
-
-    data = request.get_json()
-
+    data = request.get_json() or {}
     id_token = data.get('id_token')
-
-    name = data.get('name')
-    roll_no = data.get('roll_no')
-    department = data.get('department')
+    name = (data.get('name') or '').strip()
+    roll_no = (data.get('roll_no') or '').strip()
+    department = (data.get('department') or '').strip()
     year = data.get('year')
 
     if not id_token:
-        return {
-            "success": False,
-            "message": "Firebase ID token is missing."
-        }
+        return {"success": False, "message": "Firebase ID token is missing."}
 
     try:
         decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
-
         firebase_uid = decoded_token['uid']
         email = decoded_token.get('email')
-
     except Exception as e:
         print("Firebase registration error:", e)
-
-        return {
-            "success": False,
-            "message": f"Invalid Firebase authentication: {str(e)}"
-        }
+        return {"success": False, "message": f"Invalid Firebase authentication: {str(e)}"}
 
     if not name or not roll_no or not email:
-        return {
-            "success": False,
-            "message": "Required student information is missing."
-        }
+        return {"success": False, "message": "Required student information is missing."}
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-
+        # Upsert student profile: if email exists, update the profile; otherwise insert new
         cursor.execute(
             '''
-            INSERT INTO students
-            (
-                firebase_uid,
-                name,
-                roll_no,
-                email,
-                department,
-                year
-            )
+            INSERT INTO students (firebase_uid, name, roll_no, email, department, year)
             VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                firebase_uid = excluded.firebase_uid,
+                name = excluded.name,
+                roll_no = excluded.roll_no,
+                department = excluded.department,
+                year = excluded.year
             ''',
-            (
-                firebase_uid,
-                name,
-                roll_no,
-                email,
-                department,
-                year
-            )
+            (firebase_uid, name, roll_no, email, department, year)
         )
-
         conn.commit()
 
-        return {
-            "success": True,
-            "message": "Student profile saved successfully."
-        }
+        # Update session if student is registering
+        cursor.execute('SELECT * FROM students WHERE email=?', (email,))
+        saved_student = cursor.fetchone()
+        if saved_student:
+            session['student_id'] = saved_student['id']
+            session['name'] = saved_student['name']
+            session['firebase_uid'] = firebase_uid
+            session['email'] = saved_student['email']
 
-    except sqlite3.IntegrityError:
-
-        return {
-            "success": False,
-            "message": "Email or Roll Number already exists."
-        }
+        return {"success": True, "message": "Student profile saved successfully."}
 
     except Exception as e:
-
-        print("Database error:", e)
-
-        return {
-            "success": False,
-            "message": "Failed to save student profile."
-        }
-
+        print("Database save error:", e)
+        return {"success": False, "message": f"Failed to save student profile: {str(e)}"}
     finally:
         conn.close()
 
@@ -238,28 +204,19 @@ def save_student():
 
 @app.route('/firebase-login', methods=['POST'])
 def firebase_login():
-
-    data = request.get_json()
-
+    data = request.get_json() or {}
     id_token = data.get('id_token')
 
     if not id_token:
-        return {
-            "success": False,
-            "message": "Firebase ID token missing."
-        }
+        return {"success": False, "message": "Firebase ID token missing."}
 
     try:
-
         # Verify the Firebase ID token (with 60s tolerance for machine clock variance)
         decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
-
-        # Get the real Firebase UID and email
         firebase_uid = decoded_token['uid']
         email = decoded_token.get('email')
 
-        # Check email verification:
-        # First check token claims (does not require private key API call)
+        # Check email verification
         email_verified = decoded_token.get('email_verified', False)
         if not email_verified:
             try:
@@ -269,41 +226,32 @@ def firebase_login():
                 pass
 
         if not email_verified:
-            return {
-                "success": False,
-                "message": "Please verify your email before logging in."
-            }
+            return {"success": False, "message": "Please verify your email before logging in."}
 
-        # Find student in SQLite
+        # Find student in SQLite by firebase_uid
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute(
-            '''
-            SELECT *
-            FROM students
-            WHERE firebase_uid=?
-            ''',
-            (firebase_uid,)
-        )
-
+        cursor.execute('SELECT * FROM students WHERE firebase_uid=?', (firebase_uid,))
         student = cursor.fetchone()
 
         # If not found by firebase_uid, check if student exists with matching email
         if not student and email:
-            cursor.execute('SELECT * FROM students WHERE email=?', (email,))
+            cursor.execute('SELECT * FROM students WHERE LOWER(email)=LOWER(?)', (email,))
             student = cursor.fetchone()
             if student:
                 cursor.execute('UPDATE students SET firebase_uid=? WHERE id=?', (firebase_uid, student['id']))
                 conn.commit()
 
-        # If student still does not exist, auto-create profile from token information
+        # If student still does not exist, create profile cleanly
         if not student and email:
             display_name = decoded_token.get('name') or email.split('@')[0]
             cursor.execute(
                 '''
                 INSERT INTO students (firebase_uid, name, roll_no, email, department, year)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(email) DO UPDATE SET
+                    firebase_uid = excluded.firebase_uid
                 ''',
                 (firebase_uid, display_name, "N/A", email, "General", 1)
             )
@@ -314,93 +262,215 @@ def firebase_login():
         conn.close()
 
         if not student:
-            return {
-                "success": False,
-                "message": "Student profile not found."
-            }
+            return {"success": False, "message": "Student profile not found."}
 
         # Create Flask session
         session['student_id'] = student['id']
         session['name'] = student['name']
         session['firebase_uid'] = firebase_uid
+        session['email'] = student['email']
 
-        return {
-            "success": True,
-            "message": "Login successful."
-        }
+        return {"success": True, "message": "Login successful."}
 
     except Exception as e:
-
         print("Firebase login error:", e)
-
-        return {
-            "success": False,
-            "message": f"Invalid Firebase authentication: {str(e)}"
-        }
+        return {"success": False, "message": f"Invalid Firebase authentication: {str(e)}"}
 
 
 # Dashboard
 @app.route('/dashboard')
 def dashboard():
-
     if 'student_id' not in session:
         return redirect('/login')
 
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM students WHERE id=?', (session['student_id'],))
+    student = cursor.fetchone()
+
+    cursor.execute('''
+        SELECT * FROM skills WHERE student_id=? AND skill_type='Teach'
+    ''', (session['student_id'],))
+    teach_skills = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT * FROM skills WHERE student_id=? AND skill_type='Learn'
+    ''', (session['student_id'],))
+    learn_skills = cursor.fetchall()
+
+    is_verified = True
+    if student and student['firebase_uid']:
+        try:
+            fb_user = auth.get_user(student['firebase_uid'])
+            is_verified = getattr(fb_user, 'email_verified', True)
+        except Exception:
+            pass
+
+    conn.close()
+
     return render_template(
         'dashboard.html',
-        name=session['name']
+        name=student['name'] if student else session.get('name', 'Student'),
+        student=student,
+        teach_skills=teach_skills,
+        learn_skills=learn_skills,
+        is_verified=is_verified
     )
 
+
+# Profile
+@app.route('/profile')
+def profile():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM students WHERE id=?', (session['student_id'],))
+    student = cursor.fetchone()
+
+    cursor.execute('''
+        SELECT * FROM skills WHERE student_id=? AND skill_type='Teach'
+    ''', (session['student_id'],))
+    teach_skills = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT * FROM skills WHERE student_id=? AND skill_type='Learn'
+    ''', (session['student_id'],))
+    learn_skills = cursor.fetchall()
+
+    is_verified = True
+    if student and student['firebase_uid']:
+        try:
+            fb_user = auth.get_user(student['firebase_uid'])
+            is_verified = getattr(fb_user, 'email_verified', True)
+        except Exception:
+            pass
+
+    conn.close()
+
+    return render_template(
+        'profile.html',
+        student=student,
+        teach_skills=teach_skills,
+        learn_skills=learn_skills,
+        is_verified=is_verified
+    )
+
+
+# Edit Profile
+@app.route('/edit_profile', methods=['GET', 'POST'])
+def edit_profile():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        roll_no = request.form.get('roll_no', '').strip()
+        department = request.form.get('department', '').strip()
+        year = request.form.get('year', '').strip()
+
+        if name:
+            cursor.execute('''
+                UPDATE students
+                SET name=?, roll_no=?, department=?, year=?
+                WHERE id=?
+            ''', (name, roll_no, department, year, session['student_id']))
+            conn.commit()
+            session['name'] = name
+
+        conn.close()
+        return redirect('/profile')
+
+    cursor.execute('SELECT * FROM students WHERE id=?', (session['student_id'],))
+    student = cursor.fetchone()
+    conn.close()
+
+    return render_template('edit_profile.html', student=student)
 
 
 # Logout
 @app.route('/logout')
 def logout():
-
     session.clear()
-
     return redirect('/')
 
 
 # Add Skill
 @app.route('/add_skill', methods=['GET', 'POST'])
 def add_skill():
-
     if 'student_id' not in session:
         return redirect('/login')
 
-    if request.method == 'POST':
+    conn = get_db_connection()
+    cursor = conn.cursor()
 
+    if request.method == 'POST':
         teach_skills = request.form.getlist('teach_skills')
         learn_skills = request.form.getlist('learn_skills')
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
         for skill in teach_skills:
-            cursor.execute(
-                '''
-                INSERT INTO skills(student_id, skill_name, skill_type)
-                VALUES(?,?,?)
-                ''',
-                (session['student_id'], skill, 'Teach')
-            )
+            skill = skill.strip()
+            if skill:
+                cursor.execute('''
+                    SELECT id FROM skills
+                    WHERE student_id=? AND skill_name=? AND skill_type='Teach'
+                ''', (session['student_id'], skill))
+                if not cursor.fetchone():
+                    cursor.execute('''
+                        INSERT INTO skills(student_id, skill_name, skill_type)
+                        VALUES(?,?,?)
+                    ''', (session['student_id'], skill, 'Teach'))
 
         for skill in learn_skills:
-            cursor.execute(
-                '''
-                INSERT INTO skills(student_id, skill_name, skill_type)
-                VALUES(?,?,?)
-                ''',
-                (session['student_id'], skill, 'Learn')
-            )
+            skill = skill.strip()
+            if skill:
+                cursor.execute('''
+                    SELECT id FROM skills
+                    WHERE student_id=? AND skill_name=? AND skill_type='Learn'
+                ''', (session['student_id'], skill))
+                if not cursor.fetchone():
+                    cursor.execute('''
+                        INSERT INTO skills(student_id, skill_name, skill_type)
+                        VALUES(?,?,?)
+                    ''', (session['student_id'], skill, 'Learn'))
 
         conn.commit()
         conn.close()
-
         return redirect('/dashboard')
 
-    return render_template('add_skill.html')
+    # Fetch currently saved skills so user can see them
+    cursor.execute('''
+        SELECT * FROM skills WHERE student_id=? AND skill_type='Teach'
+    ''', (session['student_id'],))
+    teach_skills = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT * FROM skills WHERE student_id=? AND skill_type='Learn'
+    ''', (session['student_id'],))
+    learn_skills = cursor.fetchall()
+
+    conn.close()
+    return render_template('add_skill.html', teach_skills=teach_skills, learn_skills=learn_skills)
+
+
+# Delete Skill
+@app.route('/delete_skill/<int:id>', methods=['POST'])
+def delete_skill(id):
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM skills WHERE id=? AND student_id=?', (id, session['student_id']))
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer or '/dashboard')
 
 
 # Matching Students

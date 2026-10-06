@@ -174,19 +174,27 @@ Grow Together.
 <p>
 
 Welcome {{name}} !
-
-Connect with fellow students,
-exchange skills and build
-meaningful academic and
-professional relationships.
+{% if is_verified %}
+<span style="background: #10B981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; display: inline-block; margin-left: 8px; vertical-align: middle;">
+    ✓ Verified Account
+</span>
+{% endif %}
+<br><br>
+Connect with fellow students, exchange skills and build meaningful academic and professional relationships.
 
 </p>
 
-<a href="/add_skill" class="start-btn">
-
-Start Learning
-
-</a>
+<div style="display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap;">
+    <a href="/add_skill" class="start-btn">
+        Manage Skills
+    </a>
+    <a href="/profile" class="start-btn" style="background: #3B1E6D; border: 1px solid #7C3AED;">
+        View Profile
+    </a>
+    <a href="/chat" class="start-btn" style="background: #10B981;">
+        Open Chat
+    </a>
+</div>
 
 </div>
 
@@ -198,9 +206,61 @@ Start Learning
 
 </section>
 
-```html
-<!-- Features Section -->
+<!-- My Active Skills Section -->
+<section style="padding: 60px 8%; background: #F5F3FF; border-bottom: 1px solid #E9D5FF;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h2 style="font-size: 32px; color: #2E1065; font-weight: 700;">My Registered Skills</h2>
+            <p style="color: #6D28D9; font-size: 15px; margin-top: 4px;">Skills you offer to teach and skills you want to learn</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <a href="/add_skill" style="background: #2E1065; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px;">+ Add / Edit Skills</a>
+            <a href="/matchingstudent" style="background: #6D28D9; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px;">Find Peer Matches</a>
+        </div>
+    </div>
 
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px;">
+        <!-- TEACH SKILLS -->
+        <div style="background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #DDD6FE;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #F3EEFB; padding-bottom: 10px;">
+                <h3 style="color: #2E1065; font-size: 18px; font-weight: 700;">🎓 Skills I Can Teach</h3>
+                <span style="background: #EDE9FE; color: #6D28D9; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px;">{{ teach_skills|length }} Skills</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                {% if teach_skills and teach_skills|length > 0 %}
+                    {% for s in teach_skills %}
+                    <span style="background: #EDE9FE; color: #2E1065; padding: 6px 14px; border-radius: 20px; font-size: 13.5px; font-weight: 600; border: 1px solid #DDD6FE;">
+                        {{ s.skill_name }}
+                    </span>
+                    {% endfor %}
+                {% else %}
+                    <p style="color: #6B7280; font-size: 14px; font-style: italic;">No teaching skills added yet. <a href="/add_skill" style="color: #6D28D9; font-weight: 600;">Add skills you can teach</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- LEARN SKILLS -->
+        <div style="background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #DDD6FE;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #F3EEFB; padding-bottom: 10px;">
+                <h3 style="color: #2E1065; font-size: 18px; font-weight: 700;">📖 Skills I Want To Learn</h3>
+                <span style="background: #EDE9FE; color: #6D28D9; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px;">{{ learn_skills|length }} Skills</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                {% if learn_skills and learn_skills|length > 0 %}
+                    {% for s in learn_skills %}
+                    <span style="background: #F5F3FF; color: #5B21B6; padding: 6px 14px; border-radius: 20px; font-size: 13.5px; font-weight: 600; border: 1px solid #DDD6FE;">
+                        {{ s.skill_name }}
+                    </span>
+                    {% endfor %}
+                {% else %}
+                    <p style="color: #6B7280; font-size: 14px; font-style: italic;">No learning skills added yet. <a href="/add_skill" style="color: #6D28D9; font-weight: 600;">Add skills you want to learn</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
 <section style="padding:100px 8%; background:white;">
 
 <h1 style="

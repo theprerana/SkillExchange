@@ -242,6 +242,7 @@
     import {
         getAuth,
         createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
         sendEmailVerification
     }
     from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
@@ -488,12 +489,35 @@
                 error.code ===
                 "auth/email-already-in-use"
             ) {
+                // Account already exists in Firebase. Try authenticating and updating SQLite profile!
+                try {
+                    registerButton.innerText = "Syncing profile...";
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    const idToken = await user.getIdToken();
 
-
-                message.innerText =
-                    "This email is already registered.";
-
-
+                    const response = await fetch("/save-student", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            id_token: idToken,
+                            name: name,
+                            roll_no: rollNo,
+                            department: department,
+                            year: year
+                        })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert("Account profile saved & updated successfully!\nPlease log in to access your dashboard.");
+                        window.location.href = "/login";
+                        return;
+                    } else {
+                        message.innerText = result.message || "This email is already registered.";
+                    }
+                } catch(loginErr) {
+                    message.innerText = "This email is already registered. Please go to Login or use a different email.";
+                }
             }
 
 

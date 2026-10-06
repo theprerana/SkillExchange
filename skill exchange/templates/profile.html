@@ -1,232 +1,437 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-
-<title>My Profile</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Profile - Skill Exchange</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Poppins',sans-serif;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
 }
 
-body{
-
-    background-image:url("/static/bg.jpg");
-    background-size:cover;
-    background-position:center;
-    background-repeat:no-repeat;
-
-    min-height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    padding:40px;
-
+body {
+    background: #090710;
+    color: #F5F3FF;
+    min-height: 100vh;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.container{
-
-    width:65%;
-
-    background-image:url("/static/images/profile_container_bg.jpg");
-
-    background-size:cover;
-
-    background-position:center;
-
-    background-repeat:no-repeat;
-
-    border-radius:25px;
-
-    padding:40px;
-
-    box-shadow:
-    0 10px 30px rgba(0,0,0,0.2);
-
+.profile-container {
+    width: 100%;
+    max-width: 850px;
+    background: #140F24;
+    border-radius: 24px;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
 }
 
-.header,
-.section{
-
-    background:rgba(255,255,255,0.92);
-
-    border-radius:20px;
-
-    padding:25px;
-
+/* TOP HEADER BANNER */
+.profile-cover {
+    height: 120px;
+    background: linear-gradient(135deg, #2E1065, #4C1D95, #6D28D9);
+    position: relative;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
 }
 
-
-.name{
-
-    font-size:38px;
-
-    font-weight:700;
-    font-weight: bold;
-
-    color:#24135F;
-
-    margin-bottom:20px;
-
+.nav-back-btn {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(5px);
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.info{
-
-    font-size:17px;
-    font-weight: bold;
-
-    color:black;
-
-    line-height:2.2;
-
+.nav-back-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
 }
 
-.section{
-
-    background:#fafafa;
-
-    padding:25px;
-
-    border-radius:18px;
-
-    margin-bottom:25px;
-
-    box-shadow:0 3px 12px rgba(0,0,0,0.08);
-
+/* AVATAR & NAME SECTION */
+.profile-header-body {
+    padding: 0 35px 25px 35px;
+    position: relative;
+    margin-top: -50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
-.section h2{
-
-    color:#24135F;
-
-    font-size:25px;
-
-    margin-bottom:20px;
-
-    border-left:5px solid #24135F;
-
-    padding-left:15px;
-
+.avatar-badge-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
 }
 
-.skill{
-
-    display:inline-block;
-
-    background:#edf2ff;
-
-    color:#24135F;
-
-    padding:12px 20px;
-
-    border-radius:25px;
-
-    margin:8px;
-
-    font-size:15px;
-
-    font-weight:500;
-
-    box-shadow:0 3px 8px rgba(0,0,0,0.1);
-
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C3AED, #3B1E6D);
+    color: white;
+    font-size: 42px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid #140F24;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+    text-transform: uppercase;
 }
 
-.skill:hover{
-
-    transform:translateY(-2px);
-
+.profile-name-meta h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.2;
 }
 
+.profile-name-meta p {
+    color: #C4B5FD;
+    font-size: 14.5px;
+    margin-top: 4px;
+}
+
+.header-action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-edit-profile {
+    background: linear-gradient(135deg, #7C3AED, #5B21B6);
+    color: white;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+    transition: all 0.2s;
+}
+
+.btn-edit-profile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.6);
+}
+
+/* VERIFICATION BANNER */
+.verification-banner {
+    margin: 15px 35px 25px 35px;
+    background: #1B1530;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 16px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.verif-badges {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.badge-pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.badge-pill.verified {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-pill.active {
+    background: rgba(139, 92, 246, 0.15);
+    color: #A78BFA;
+    border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+/* DETAILS GRID */
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    padding: 0 35px 30px 35px;
+}
+
+.detail-card {
+    background: #1B1530;
+    border: 1px solid rgba(139, 92, 246, 0.18);
+    border-radius: 14px;
+    padding: 16px 20px;
+}
+
+.detail-card .label {
+    font-size: 12px;
+    color: #A78BFA;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 6px;
+}
+
+.detail-card .val {
+    font-size: 15.5px;
+    color: #F5F3FF;
+    font-weight: 600;
+    word-break: break-all;
+}
+
+/* SKILLS SECTIONS */
+.skills-outer-wrap {
+    padding: 0 35px 35px 35px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.skills-block {
+    background: #1B1530;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 18px;
+    padding: 22px 26px;
+}
+
+.skills-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+    padding-bottom: 12px;
+}
+
+.skills-block-header h3 {
+    font-size: 17px;
+    color: #EDE9FE;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.skills-block-header a {
+    color: #DDD6FE;
+    font-size: 13px;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.skills-block-header a:hover {
+    color: white;
+}
+
+.skills-pill-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.skill-chip {
+    background: #271E42;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    color: #F5F3FF;
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    transition: all 0.2s;
+}
+
+.skill-chip:hover {
+    border-color: #8B5CF6;
+    background: #332757;
+}
+
+.btn-del-skill {
+    background: transparent;
+    border: none;
+    color: #EF4444;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+}
+
+.btn-del-skill:hover {
+    color: #F87171;
+}
+
+.empty-state {
+    color: #9CA3AF;
+    font-size: 13.5px;
+    font-style: italic;
+    padding: 10px 0;
+}
 </style>
-
 </head>
 
 <body>
 
-<div class="container">
+<div class="profile-container">
+    <!-- COVER & NAVIGATION -->
+    <div class="profile-cover">
+        <a href="/dashboard" class="nav-back-btn">
+            <i class="fa-solid fa-arrow-left"></i> Dashboard
+        </a>
+        <a href="/chat" class="nav-back-btn">
+            <i class="fa-solid fa-comments"></i> Chat Platform
+        </a>
+    </div>
 
-<div class="header">
+    <!-- PROFILE HEADER -->
+    <div class="profile-header-body">
+        <div class="avatar-badge-wrap">
+            <div class="profile-avatar">
+                {{ student.name[0] if student and student.name else 'S' }}
+            </div>
+            <div class="profile-name-meta">
+                <h1>{{ student.name if student else 'Student' }}</h1>
+                <p>{{ student.department if student else 'Skill Exchange Member' }}</p>
+            </div>
+        </div>
 
-<div class="name">
+        <div class="header-action-buttons">
+            <a href="/edit_profile" class="btn-edit-profile">
+                <i class="fa-solid fa-pen-to-square"></i> Edit Profile
+            </a>
+            <a href="/add_skill" class="btn-edit-profile" style="background: rgba(139, 92, 246, 0.25); border: 1px solid rgba(139, 92, 246, 0.4);">
+                <i class="fa-solid fa-plus"></i> Add Skills
+            </a>
+        </div>
+    </div>
 
-{{student.name}}
+    <!-- VERIFICATION STATUS BANNER -->
+    <div class="verification-banner">
+        <div>
+            <span style="font-size: 12px; color: #A78BFA; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px;">Security & Account Verification</span>
+            <div class="verif-badges">
+                <span class="badge-pill verified">
+                    <i class="fa-solid fa-circle-check"></i> Email Verified (Firebase Auth)
+                </span>
+                <span class="badge-pill active">
+                    <i class="fa-solid fa-user-check"></i> Active Student Profile
+                </span>
+                <span class="badge-pill active" style="background: rgba(59, 130, 246, 0.15); color: #60A5FA; border-color: rgba(59, 130, 246, 0.35);">
+                    <i class="fa-solid fa-shield-halved"></i> Google JWT Validated
+                </span>
+            </div>
+        </div>
+    </div>
 
-</div>
+    <!-- DETAILS GRID -->
+    <div class="details-grid">
+        <div class="detail-card">
+            <div class="label"><i class="fa-solid fa-id-badge"></i> Roll Number</div>
+            <div class="val">{{ student.roll_no if student and student.roll_no != 'N/A' else 'Not Set' }}</div>
+        </div>
 
-<div class="info">
+        <div class="detail-card">
+            <div class="label"><i class="fa-solid fa-envelope"></i> Email Address</div>
+            <div class="val">{{ student.email if student else 'N/A' }}</div>
+        </div>
 
-Roll Number : {{student.roll_no}}
+        <div class="detail-card">
+            <div class="label"><i class="fa-solid fa-building-columns"></i> Department</div>
+            <div class="val">{{ student.department if student and student.department != 'General' else 'Not Set' }}</div>
+        </div>
 
-<br><br>
+        <div class="detail-card">
+            <div class="label"><i class="fa-solid fa-graduation-cap"></i> Pursuing / Year</div>
+            <div class="val">Year {{ student.year if student else '1' }}</div>
+        </div>
+    </div>
 
-Email : {{student.email}}
+    <!-- SKILLS SECTION -->
+    <div class="skills-outer-wrap">
+        <!-- TEACH SKILLS -->
+        <div class="skills-block">
+            <div class="skills-block-header">
+                <h3><i class="fa-solid fa-chalkboard-user" style="color: #10B981;"></i> Skills I Can Teach</h3>
+                <a href="/add_skill">+ Add / Update</a>
+            </div>
+            <div class="skills-pill-container">
+                {% if teach_skills and teach_skills|length > 0 %}
+                    {% for skill in teach_skills %}
+                    <div class="skill-chip">
+                        <span>{{ skill.skill_name }}</span>
+                        <form action="/delete_skill/{{ skill.id }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn-del-skill" title="Remove skill">✕</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-state">No teaching skills added yet. <a href="/add_skill" style="color: #DDD6FE; font-weight: 600;">Add skills you can teach</a>.</p>
+                {% endif %}
+            </div>
+        </div>
 
-<br><br>
-
-Department : {{student.department}}
-
-
-
-<br><br>
-
-Year : {{student.year}}
-
-</div>
-
-</div>
-
-
-
-<div class="section">
-
-<h2>
-
-Skills I Can Teach
-
-</h2>
-
-{% for skill in teach_skills %}
-
-<span class="skill">
-
-{{skill.skill_name}}
-
-</span>
-
-{% endfor %}
-
-</div>
-
-
-
-<div class="section">
-
-<h2>
-
-Skills I Want To Learn
-
-</h2>
-
-{% for skill in learn_skills %}
-
-<span class="skill">
-
-{{skill.skill_name}}
-
-</span>
-
-{% endfor %}
-
-</div>
-
+        <!-- LEARN SKILLS -->
+        <div class="skills-block">
+            <div class="skills-block-header">
+                <h3><i class="fa-solid fa-book-open-reader" style="color: #60A5FA;"></i> Skills I Want To Learn</h3>
+                <a href="/add_skill">+ Add / Update</a>
+            </div>
+            <div class="skills-pill-container">
+                {% if learn_skills and learn_skills|length > 0 %}
+                    {% for skill in learn_skills %}
+                    <div class="skill-chip">
+                        <span>{{ skill.skill_name }}</span>
+                        <form action="/delete_skill/{{ skill.id }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn-del-skill" title="Remove skill">✕</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-state">No learning skills added yet. <a href="/add_skill" style="color: #DDD6FE; font-weight: 600;">Add skills you want to learn</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 
 </body>

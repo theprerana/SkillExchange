@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Profile - Skill Exchange</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background: #0B0914;
+    color: #F5F3FF;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 20px;
+}
+
+.edit-card {
+    background: #171329;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    width: 100%;
+    max-width: 550px;
+    border-radius: 24px;
+    padding: 40px 35px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.card-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.avatar-circle {
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C3AED, #3B1E6D);
+    color: white;
+    font-size: 32px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px auto;
+    border: 3px solid rgba(196, 181, 253, 0.3);
+}
+
+.card-header h2 {
+    color: #EDE9FE;
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.card-header p {
+    color: #A78BFA;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: #DDD6FE;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.form-group input {
+    width: 100%;
+    background: #231C3D;
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 12px;
+    padding: 13px 18px;
+    color: white;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.form-group input:focus {
+    border-color: #8B5CF6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+    background: #2A224A;
+}
+
+.form-group input:disabled {
+    background: #1A152E;
+    color: #71717A;
+    cursor: not-allowed;
+}
+
+.btn-row {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn-save {
+    flex: 1;
+    background: linear-gradient(135deg, #7C3AED, #5B21B6);
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.6);
+}
+
+.btn-cancel {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    color: #DDD6FE;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="edit-card">
+    <div class="card-header">
+        <div class="avatar-circle">
+            {{ student.name[0] if student and student.name else 'S' }}
+        </div>
+        <h2>Edit Student Profile</h2>
+        <p>Update your academic and personal information</p>
+    </div>
+
+    <form action="/edit_profile" method="POST">
+        <div class="form-group">
+            <label><i class="fa-solid fa-user"></i> Full Name</label>
+            <input type="text" name="name" value="{{ student.name if student else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-id-card"></i> Roll Number</label>
+            <input type="text" name="roll_no" value="{{ student.roll_no if student and student.roll_no != 'N/A' else '' }}" placeholder="e.g. 24BCS048" required>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-envelope"></i> Email Address (Verified via Firebase)</label>
+            <input type="email" value="{{ student.email if student else '' }}" disabled>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-building-columns"></i> Department / Major</label>
+            <input type="text" name="department" value="{{ student.department if student and student.department != 'General' else '' }}" placeholder="e.g. Computer Science & Engineering" required>
+        </div>
+
+        <div class="form-group">
+            <label><i class="fa-solid fa-graduation-cap"></i> Current Pursuing (Year)</label>
+            <input type="text" name="year" value="{{ student.year if student else '' }}" placeholder="e.g. 3 or B.Tech 3rd Year" required>
+        </div>
+
+        <div class="btn-row">
+            <button type="submit" class="btn-save"><i class="fa-solid fa-check"></i> Save Changes</button>
+            <a href="/profile" class="btn-cancel"><i class="fa-solid fa-xmark"></i> Cancel</a>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

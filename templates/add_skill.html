@@ -178,20 +178,60 @@ cursor:pointer;
 
 <div class="container">
 
-<h1>Add Skills</h1>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+    <a href="/dashboard" style="color:#24135F; text-decoration:none; font-weight:600; font-size:15px;">← Back to Dashboard</a>
+    <a href="/profile" style="color:#24135F; text-decoration:none; font-weight:600; font-size:15px;">View Profile →</a>
+</div>
+
+<h1>Manage & Add Skills</h1>
 
 <p class="subtitle">
-
 Select the skills you can teach and the skills you want to learn
-
 </p>
+
+<!-- CURRENTLY SAVED SKILLS -->
+{% if (teach_skills and teach_skills|length > 0) or (learn_skills and learn_skills|length > 0) %}
+<div style="background: #F3EEFB; padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid #DDD6FE;">
+    <h3 style="color: #24135F; font-size: 16px; margin-bottom: 12px; font-weight: 700;">Currently Saved in Your Profile</h3>
+    
+    <div style="margin-bottom: 12px;">
+        <span style="font-size: 13px; font-weight: 600; color: #4C1D95; display: block; margin-bottom: 6px;">Skills You Can Teach:</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for s in teach_skills %}
+            <span class="skill-tag" style="display: inline-flex; align-items: center; gap: 6px; background: #24135F; color: white;">
+                {{ s.skill_name }}
+                <form action="/delete_skill/{{ s.id }}" method="POST" style="display:inline; margin:0;">
+                    <button type="submit" style="background:none; border:none; color:#FCA5A5; font-size:14px; font-weight:bold; cursor:pointer; padding:0; line-height:1;" title="Delete skill">✕</button>
+                </form>
+            </span>
+            {% else %}
+            <span style="color: #6B7280; font-size: 13px; font-style: italic;">None yet</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div>
+        <span style="font-size: 13px; font-weight: 600; color: #4C1D95; display: block; margin-bottom: 6px;">Skills You Want To Learn:</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for s in learn_skills %}
+            <span class="skill-tag" style="display: inline-flex; align-items: center; gap: 6px; background: #4C1D95; color: white;">
+                {{ s.skill_name }}
+                <form action="/delete_skill/{{ s.id }}" method="POST" style="display:inline; margin:0;">
+                    <button type="submit" style="background:none; border:none; color:#FCA5A5; font-size:14px; font-weight:bold; cursor:pointer; padding:0; line-height:1;" title="Delete skill">✕</button>
+                </form>
+            </span>
+            {% else %}
+            <span style="color: #6B7280; font-size: 13px; font-style: italic;">None yet</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <form action="/add_skill" method="POST">
 
 <label>
-
-Skills I Can Teach
-
+Add More Skills I Can Teach
 </label>
 
 <div class="row">
