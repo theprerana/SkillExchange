@@ -15,8 +15,13 @@ active_calls = {}
 
 # Firebase Admin SDK
 if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase-service-account.json")
-    firebase_admin.initialize_app(cred)
+    try:
+        cred = credentials.Certificate("firebase-service-account.json")
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        print("Firebase service account initialization warning:", e)
+        firebase_admin.initialize_app(options={'projectId': 'skill-exchange-1b00a'})
+
 
 
 # Database connection
@@ -144,7 +149,7 @@ def save_student():
         }
 
     try:
-        decoded_token = auth.verify_id_token(id_token)
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
 
         firebase_uid = decoded_token['uid']
         email = decoded_token.get('email')
@@ -154,7 +159,7 @@ def save_student():
 
         return {
             "success": False,
-            "message": "Invalid Firebase authentication."
+            "message": f"Invalid Firebase authentication: {str(e)}"
         }
 
     if not name or not roll_no or not email:
@@ -236,17 +241,24 @@ def firebase_login():
 
     try:
 
-        # Verify the Firebase ID token
-        decoded_token = auth.verify_id_token(id_token)
+        # Verify the Firebase ID token (with 60s tolerance for machine clock variance)
+        decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
 
-        # Get the real Firebase UID
+        # Get the real Firebase UID and email
         firebase_uid = decoded_token['uid']
+        email = decoded_token.get('email')
 
-        # Get Firebase user
-        firebase_user = auth.get_user(firebase_uid)
+        # Check email verification:
+        # First check token claims (does not require private key API call)
+        email_verified = decoded_token.get('email_verified', False)
+        if not email_verified:
+            try:
+                firebase_user = auth.get_user(firebase_uid)
+                email_verified = getattr(firebase_user, 'email_verified', False)
+            except Exception:
+                pass
 
-        # Check email verification
-        if not firebase_user.email_verified:
+        if not email_verified:
             return {
                 "success": False,
                 "message": "Please verify your email before logging in."
@@ -266,6 +278,28 @@ def firebase_login():
         )
 
         student = cursor.fetchone()
+
+        # If not found by firebase_uid, check if student exists with matching email
+        if not student and email:
+            cursor.execute('SELECT * FROM students WHERE email=?', (email,))
+            student = cursor.fetchone()
+            if student:
+                cursor.execute('UPDATE students SET firebase_uid=? WHERE id=?', (firebase_uid, student['id']))
+                conn.commit()
+
+        # If student still does not exist, auto-create profile from token information
+        if not student and email:
+            display_name = decoded_token.get('name') or email.split('@')[0]
+            cursor.execute(
+                '''
+                INSERT INTO students (firebase_uid, name, roll_no, email, department, year)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (firebase_uid, display_name, "N/A", email, "General", 1)
+            )
+            conn.commit()
+            cursor.execute('SELECT * FROM students WHERE firebase_uid=?', (firebase_uid,))
+            student = cursor.fetchone()
 
         conn.close()
 
@@ -291,7 +325,7 @@ def firebase_login():
 
         return {
             "success": False,
-            "message": "Invalid Firebase authentication."
+            "message": f"Invalid Firebase authentication: {str(e)}"
         }
 
 

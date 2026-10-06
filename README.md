@@ -1,4 +1,4 @@
-## Skill Exchange – Learn, Teach, Connect
+<!-- ## Skill Exchange – Learn, Teach, Connect
 
 **Skill Exchange** is a peer-to-peer learning platform designed to transform students from passive learners into both **teachers and learners**. Instead of relying only on traditional classrooms or external courses, the platform allows students to share the skills they already possess while discovering peers who can teach the skills they want to learn.
 
@@ -23,4 +23,45 @@ What makes Skill Exchange innovative is that it turns the student community itse
 
 > **“Every student has something to teach, and something to learn.”**
 
-Skill Exchange doesn't simply connect students—it **connects knowledge**. By turning individual skills into opportunities for collaboration, the platform creates a student-driven environment where learning becomes **social, interactive, accessible, and reciprocal**.
+Skill Exchange doesn't simply connect students—it **connects knowledge**. By turning indivi# Skill Exchange Platform
+
+A web-based platform where students can connect with each other to exchange skills, find matching students, send exchange requests, and communicate with accepted matches. -->
+
+<!-- ## 🛠️ Tech Stack
+
+### Frontend
+- HTML5
+- CSS3
+- JavaScript
+
+### Backend
+- Python
+- Flask
+- Jinja2
+
+### Database
+- SQLite
+
+### Authentication
+- Firebase Authentication
+- Firebase Admin SDK
+
+### Libraries & Tools
+- Werkzeug
+- Gunicorn
+- Git
+- GitHub
+
+## ✨ Features
+
+- Student registration and login
+- Student profiles
+- Add skills that you can teach
+- Add skills that you want to learn
+- Skill-based student matching
+- Send skill exchange requests
+- Accept/reject exchange requests
+- Messaging between students
+- Firebase authentication
+- Email verification
+- Responsive web interfacedual skills into opportunities for collaboration, the platform creates a student-driven environment where learning becomes **social, interactive, accessible, and reciprocal**. -->
