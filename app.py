@@ -883,7 +883,8 @@ def api_send_message():
         return {"success": False, "message": "Invalid receiver ID"}, 400
 
     sender_id = session['student_id']
-    now_time = datetime.now().strftime("%I:%M %p")
+    client_time = (data.get('created_at') or '').strip()
+    now_time = client_time if client_time else datetime.now().strftime("%I:%M %p")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -918,11 +919,12 @@ def chat(id):
     my_id = session['student_id']
     conn = get_db_connection()
     cursor = conn.cursor()
-    now_time = datetime.now().strftime("%I:%M %p")
 
     # Send message (fallback form POST)
     if request.method == 'POST':
         message = request.form.get('message', '').strip()
+        client_time = (request.form.get('created_at') or '').strip()
+        now_time = client_time if client_time else datetime.now().strftime("%I:%M %p")
         if message:
             cursor.execute(
                 '''
@@ -1231,7 +1233,8 @@ def handle_socket_send_message(data):
     except (ValueError, TypeError):
         return
 
-    now_time = datetime.now().strftime("%I:%M %p")
+    client_time = (data.get('created_at') or '').strip() if data else ''
+    now_time = client_time if client_time else datetime.now().strftime("%I:%M %p")
 
     conn = get_db_connection()
     cursor = conn.cursor()

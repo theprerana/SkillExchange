@@ -1115,20 +1115,22 @@ function handleSendMessage(e) {
     messageInput.value = "";
     messageInput.focus();
 
-    // 2. Emit over Socket.IO for instant delivery
+    // 2. Emit over Socket.IO for instant delivery with client timestamp
     socket.emit("send_message", {
         sender_id: myStudentId,
         receiver_id: receiverId,
-        message: text
+        message: text,
+        created_at: timeStr
     });
 
-    // 3. Persist to server via background AJAX fallback
+    // 3. Persist to server via background AJAX fallback with client timestamp
     fetch("/api/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             receiver_id: receiverId,
-            message: text
+            message: text,
+            created_at: timeStr
         })
     }).catch(err => console.log("Message background sync:", err));
 }
@@ -1137,11 +1139,165 @@ function handleSendMessage(e) {
 socket.on("receive_message", function(data) {
     if (data.sender_id === receiverId) {
         appendMessage(data.message, false, data.created_at);
+        playMessageChime();
+        showDesktopNotification(receiverName || "New Message", data.message);
     }
 });
 
 /* ============================================================
-   3. HIGH-SPEED NATIVE WEBRTC VIDEO CALL ENGINE (WHATSAPP-STYLE)
+   3. AUDIO RINGTONES & DESKTOP NOTIFICATIONS (WHATSAPP SOUNDS)
+   ============================================================ */
+let audioCtx = null;
+let ringtoneInterval = null;
+let activeOscillators = [];
+
+function getAudioContext() {
+    if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+        }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
+
+// 1. WhatsApp Message Incoming Pop/Chime
+function playMessageChime() {
+    try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(659.25, now); // E5
+        osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.12); // C6
+        gain.gain.setValueAtTime(0.20, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.36);
+    } catch(e) {
+        console.log("Audio chime error:", e);
+    }
+}
+
+// 2. WhatsApp Melodic Incoming Video Call Ringtone (Synthesized Marimba)
+function startIncomingRingtone() {
+    stopRingtone();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    // Classic melodic WhatsApp marimba ringing phrase
+    const phrase = [
+        { freq: 659.25, dur: 0.18, delay: 0.00 }, // E5
+        { freq: 830.61, dur: 0.18, delay: 0.22 }, // G#5
+        { freq: 739.99, dur: 0.22, delay: 0.44 }, // F#5
+        { freq: 493.88, dur: 0.28, delay: 0.72 }, // B4
+        { freq: 659.25, dur: 0.18, delay: 1.05 }, // E5
+        { freq: 830.61, dur: 0.18, delay: 1.28 }, // G#5
+        { freq: 987.77, dur: 0.25, delay: 1.50 }, // B5
+        { freq: 880.00, dur: 0.35, delay: 1.80 }  // A5
+    ];
+
+    function playRingingNotes() {
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        phrase.forEach(note => {
+            try {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(note.freq, now + note.delay);
+
+                gain.gain.setValueAtTime(0.001, now + note.delay);
+                gain.gain.linearRampToValueAtTime(0.30, now + note.delay + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + note.delay + note.dur);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + note.delay);
+                osc.stop(now + note.delay + note.dur + 0.05);
+                activeOscillators.push(osc);
+            } catch(e) {}
+        });
+    }
+
+    playRingingNotes();
+    ringtoneInterval = setInterval(playRingingNotes, 2600);
+}
+
+// 3. Outgoing Call Tone (Soft Dial Pulses)
+function startOutgoingRingtone() {
+    stopRingtone();
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    function playDialBeep() {
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        [0, 0.26].forEach(offset => {
+            try {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(440, now + offset);
+                gain.gain.setValueAtTime(0.001, now + offset);
+                gain.gain.linearRampToValueAtTime(0.12, now + offset + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + offset);
+                osc.stop(now + offset + 0.20);
+                activeOscillators.push(osc);
+            } catch(e) {}
+        });
+    }
+
+    playDialBeep();
+    ringtoneInterval = setInterval(playDialBeep, 2400);
+}
+
+// 4. Stop all ringing sounds
+function stopRingtone() {
+    if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+    }
+    activeOscillators.forEach(osc => {
+        try { osc.stop(); } catch(e) {}
+    });
+    activeOscillators = [];
+}
+
+// 5. Desktop Notifications
+function requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+}
+document.addEventListener("click", () => {
+    getAudioContext();
+    requestNotificationPermission();
+}, { once: true });
+
+function showDesktopNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        try {
+            new Notification(title, {
+                body: body,
+                icon: "https://cdn-icons-png.flaticon.com/512/3135/3135789.png"
+            });
+        } catch(e) {}
+    }
+}
+
+/* ============================================================
+   4. HIGH-SPEED NATIVE WEBRTC VIDEO CALL ENGINE (WHATSAPP-STYLE)
    ============================================================ */
 const defaultRoomName = {{ room_name|tojson }};
 const receiverName = {{ (receiver.name if receiver and receiver.name else 'Peer')|tojson }};
@@ -1271,6 +1427,22 @@ async function initLocalStream() {
     }
 }
 
+// Ensure local tracks are attached to peer connection
+async function ensureLocalTracksOnPeerConnection() {
+    if (!localStream) {
+        await initLocalStream();
+    }
+    if (peerConnection && localStream) {
+        const senders = peerConnection.getSenders();
+        localStream.getTracks().forEach(track => {
+            const exists = senders.some(s => s.track && s.track.id === track.id);
+            if (!exists) {
+                peerConnection.addTrack(track, localStream);
+            }
+        });
+    }
+}
+
 // Create and configure RTCPeerConnection
 function createPeerConnection() {
     if (peerConnection) return peerConnection;
@@ -1278,23 +1450,31 @@ function createPeerConnection() {
     peerConnection = new RTCPeerConnection(rtcConfig);
     iceCandidateQueue = [];
 
-    // Attach local stream tracks
+    // Attach local stream tracks if available
     if (localStream) {
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
         });
     }
 
-    // Remote track arrived
+    // Remote track arrived - supports both stream bundling and separate tracks
     peerConnection.ontrack = (event) => {
-        console.log("Remote WebRTC stream received", event.streams);
+        console.log("Remote WebRTC stream received", event);
         const remoteVideo = document.getElementById("remoteVideo");
         const placeholder = document.getElementById("callPlaceholder");
-        if (remoteVideo && event.streams && event.streams[0]) {
-            remoteVideo.srcObject = event.streams[0];
+        if (remoteVideo) {
+            if (event.streams && event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
+            } else {
+                if (!remoteVideo.srcObject) {
+                    remoteVideo.srcObject = new MediaStream();
+                }
+                remoteVideo.srcObject.addTrack(event.track);
+            }
             remoteVideo.style.display = "block";
             if (placeholder) placeholder.style.display = "none";
             remoteVideo.play().catch(e => console.log("Remote video play error:", e));
+            stopRingtone();
             startCallTimer();
         }
     };
@@ -1315,6 +1495,7 @@ function createPeerConnection() {
         if (peerConnection.connectionState === "connected") {
             const subtitle = document.getElementById("callStateSubtitle");
             if (subtitle) subtitle.innerText = "Connected";
+            stopRingtone();
             startCallTimer();
         } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
             showCallStatus("Connection lost. Reconnecting...", false, false);
@@ -1358,6 +1539,9 @@ async function startCall() {
         return;
     }
 
+    // Play outgoing dialing ringtone
+    startOutgoingRingtone();
+
     showCallStatus(`📞 Calling ${receiverName}...`, true, true);
     socket.emit("start_call", {
         caller_id: myStudentId,
@@ -1367,11 +1551,13 @@ async function startCall() {
 
 // Direct join backup (Jitsi link fallback in separate tab)
 function joinCallImmediately() {
+    stopRingtone();
     window.open(`https://meet.jit.si/${encodeURIComponent(defaultRoomName)}`, '_blank');
 }
 
 // Cancel outgoing call
 function cancelCall() {
+    stopRingtone();
     socket.emit("cancel_call", {
         caller_id: myStudentId,
         receiver_id: receiverId
@@ -1389,10 +1575,15 @@ socket.on("incoming_call", function(data) {
     if (callerText) callerText.innerText = `${callerName} is video calling you...`;
     const overlay = document.getElementById("incoming-call-overlay");
     if (overlay) overlay.style.display = "flex";
+
+    // Play incoming WhatsApp marimba ringtone and show desktop alert!
+    startIncomingRingtone();
+    showDesktopNotification("📞 Incoming Video Call", `${callerName} is video calling you on Skill Exchange...`);
 });
 
 // Call Cancelled by Caller
 socket.on("call_cancelled", function() {
+    stopRingtone();
     const overlay = document.getElementById("incoming-call-overlay");
     if (overlay) overlay.style.display = "none";
     endCall(false);
@@ -1402,6 +1593,7 @@ socket.on("call_cancelled", function() {
 
 // 3. ACCEPT CALL (Receiver)
 async function acceptCall() {
+    stopRingtone();
     const overlay = document.getElementById("incoming-call-overlay");
     if (overlay) overlay.style.display = "none";
 
@@ -1433,6 +1625,7 @@ async function acceptCall() {
 
 // 4. REJECT CALL (Receiver)
 function rejectCall() {
+    stopRingtone();
     const overlay = document.getElementById("incoming-call-overlay");
     if (overlay) overlay.style.display = "none";
     if (currentCallId) {
@@ -1445,6 +1638,7 @@ function rejectCall() {
 }
 
 socket.on("call_rejected", function() {
+    stopRingtone();
     showCallStatus("❌ Call declined", false, false);
     endCall(false);
     setTimeout(hideCallStatus, 3000);
@@ -1452,12 +1646,15 @@ socket.on("call_rejected", function() {
 
 // 5. CALL ACCEPTED / CONNECTED: Establish WebRTC PeerConnection
 socket.on("call_accepted", async function(data) {
+    stopRingtone();
     hideCallStatus();
     currentCallId = data.call_id;
     const subtitle = document.getElementById("callStateSubtitle");
     if (subtitle) subtitle.innerText = "Connecting stream...";
 
     const pc = createPeerConnection();
+    await ensureLocalTracksOnPeerConnection();
+
     try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -1471,10 +1668,12 @@ socket.on("call_accepted", async function(data) {
     }
 });
 
-socket.on("call_connected", function(data) {
+socket.on("call_connected", async function(data) {
+    stopRingtone();
     hideCallStatus();
     currentCallId = data.call_id;
     createPeerConnection();
+    await ensureLocalTracksOnPeerConnection();
 });
 
 // 6. WEBRTC SIGNALING HANDLERS
@@ -1482,6 +1681,8 @@ socket.on("call_connected", function(data) {
 socket.on("webrtc_offer", async function(data) {
     if (data.sender_id && parseInt(data.sender_id) !== parseInt(receiverId)) return;
     const pc = createPeerConnection();
+    await ensureLocalTracksOnPeerConnection();
+
     try {
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
         await drainIceCandidates();
@@ -1567,6 +1768,7 @@ function toggleCamera() {
 }
 
 function endCall(notifyPeer) {
+    stopRingtone();
     if (notifyPeer !== false) {
         socket.emit("end_call", {
             call_id: currentCallId,
@@ -1607,6 +1809,7 @@ function endCall(notifyPeer) {
 }
 
 socket.on("call_ended", function() {
+    stopRingtone();
     endCall(false);
     showCallStatus("Call ended", false, false);
     setTimeout(hideCallStatus, 3000);
