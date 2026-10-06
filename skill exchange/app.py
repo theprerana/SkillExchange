@@ -1008,70 +1008,7 @@ def chat(id):
 
 
 
-# Profile
-@app.route('/profile')
-def profile():
 
-    if 'student_id' not in session:
-        return redirect('/login')
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Student details
-    cursor.execute(
-        '''
-        SELECT *
-        FROM students
-        WHERE id=?
-        ''',
-
-        (session['student_id'],)
-    )
-
-    student = cursor.fetchone()
-
-
-    # Skills I Can Teach
-    cursor.execute(
-        '''
-        SELECT skill_name
-        FROM skills
-        WHERE student_id=?
-        AND skill_type='Teach'
-        ''',
-
-        (session['student_id'],)
-    )
-
-    teach_skills = cursor.fetchall()
-
-
-    # Skills I Want To Learn
-    cursor.execute(
-        '''
-        SELECT skill_name
-        FROM skills
-        WHERE student_id=?
-        AND skill_type='Learn'
-        ''',
-
-        (session['student_id'],)
-    )
-
-    learn_skills = cursor.fetchall()
-
-    conn.close()
-
-    return render_template(
-        'profile.html',
-
-        student=student,
-
-        teach_skills=teach_skills,
-
-        learn_skills=learn_skills
-    )
 
 
 
