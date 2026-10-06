@@ -1,386 +1,1169 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Chat - Skill Exchange</title>
 
-<title>Chat</title>
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
-rel="stylesheet">
+<!-- Socket.IO -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<!-- Jitsi Meet External API -->
+<script src="https://meet.jit.si/external_api.js"></script>
 
 <style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Poppins',sans-serif;
+:root {
+    /* Color Palette requested by user */
+    --outside-black: #050507;
+    --dark-lavender: #2E1065;
+    --dark-lavender-accent: #3B1E6D;
+    --dark-lavender-hover: #4C1D95;
+    --vibrant-lavender: #6D28D9;
+    --light-lavender-pill: #DDD6FE;
+    --lightest-lavender-chat: #F5F3FF;
+    --lightest-lavender-border: #E9D5FF;
+    --sent-bubble-bg: #DDD6FE;
+    --received-bubble-bg: #FFFFFF;
+    --text-primary: #1E1B4B;
+    --text-muted: #6B7280;
+    --whatsapp-check: #6D28D9;
 }
 
-body{
-
-    background-image:url("/static/bg.jpg");
-    background-size:cover;
-    background-position:center;
-
-    min-height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    padding:30px;
-
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
 }
 
-.chat-container{
-
-    width:800px;
-
-    height:700px;
-
-    background:white;
-
-    border-radius:20px;
-
-    box-shadow:0 10px 30px rgba(0,0,0,0.2);
-
-    display:flex;
-
-    flex-direction:column;
-
-    overflow:hidden;
-
+/* OUTSIDE LAYOUT TO BLACK */
+body {
+    background-color: var(--outside-black);
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    color: var(--text-primary);
 }
 
-.header{
-
-    background:#24135F;
-
-    color:white;
-
-    padding:20px;
-
-    font-size:24px;
-
-    font-weight:600;
-
-    text-align:center;
-
+/* WHATSAPP MAIN CONTAINER */
+.whatsapp-app {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    max-width: 1600px;
+    background: #ffffff;
+    box-shadow: 0 0 50px rgba(76, 29, 149, 0.4);
+    overflow: hidden;
+    position: relative;
 }
 
-
-/* MESSAGE AREA */
-
-.messages{
-
-    flex:1;
-
-    padding:20px;
-
-    overflow-y:auto;
-
-    background:#f4f4f4;
-
+/* ============================================================
+   LEFT SIDEBAR (CHATS LIST)
+   ============================================================ */
+.sidebar {
+    width: 380px;
+    min-width: 340px;
+    height: 100%;
+    background: #110e1b;
+    border-right: 1px solid rgba(139, 92, 246, 0.2);
+    display: flex;
+    flex-direction: column;
 }
 
-.sent{
-
-    background:#24135F;
-
-    color:white;
-
-    padding:12px 18px;
-
-    border-radius:15px;
-
-    width:max-content;
-
-    margin-left:auto;
-
-    margin-bottom:15px;
-
-    max-width:70%;
-
+/* SIDEBAR HEADER - DARK LAVENDER */
+.sidebar-header {
+    height: 65px;
+    background: var(--dark-lavender);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+    z-index: 5;
 }
 
-.received{
-
-    background:white;
-
-    padding:12px 18px;
-
-    border-radius:15px;
-
-    margin-bottom:15px;
-
-    max-width:70%;
-
-    box-shadow:0 2px 8px rgba(0,0,0,0.1);
-
+.user-profile-badge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-
-/* MESSAGE INPUT */
-
-.input-area{
-
-    display:flex;
-
-    padding:15px;
-
-    background:white;
-
-    gap:10px;
-
+.avatar-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C3AED, #4C1D95);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
 }
 
-.input-area input{
-
-    flex:1;
-
-    padding:15px;
-
-    border:1px solid #ddd;
-
-    border-radius:12px;
-
-    font-size:16px;
-
+.user-meta h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #F5F3FF;
+    line-height: 1.2;
 }
 
-.input-area button{
-
-    background:#24135F;
-
-    color:white;
-
-    border:none;
-
-    padding:15px 25px;
-
-    border-radius:12px;
-
-    cursor:pointer;
-
+.user-meta span {
+    font-size: 12px;
+    color: #C4B5FD;
 }
 
-
-/* VIDEO BUTTON */
-
-.video-button{
-
-    margin:0 15px 15px 15px;
-
-    padding:14px;
-
-    background:#28a745;
-
-    color:white;
-
-    border:none;
-
-    border-radius:12px;
-
-    font-size:16px;
-
-    font-weight:600;
-
-    cursor:pointer;
-
+.sidebar-actions {
+    display: flex;
+    gap: 15px;
 }
 
-.video-button:hover{
-
-    background:#218838;
-
+.sidebar-actions a {
+    color: #DDD6FE;
+    font-size: 18px;
+    transition: color 0.2s, transform 0.2s;
+    text-decoration: none;
 }
 
-
-/* JITSI AREA */
-
-#jitsi-container{
-
-    display:none;
-
-    width:100%;
-
-    height:400px;
-
-    background:#111;
-
+.sidebar-actions a:hover {
+    color: #FFFFFF;
+    transform: scale(1.1);
 }
 
+/* SEARCH BAR */
+.sidebar-search-box {
+    padding: 10px 14px;
+    background: #161224;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: #231C38;
+    border-radius: 8px;
+    padding: 7px 12px;
+    gap: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.search-input-wrapper i {
+    color: #A78BFA;
+    font-size: 14px;
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #F5F3FF;
+    font-size: 13.5px;
+}
+
+.search-input-wrapper input::placeholder {
+    color: #9CA3AF;
+}
+
+/* CHATS LIST SCROLLABLE */
+.chats-list {
+    flex: 1;
+    overflow-y: auto;
+    background: #110e1b;
+}
+
+.chats-list::-webkit-scrollbar {
+    width: 5px;
+}
+.chats-list::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 4px;
+}
+
+.chat-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+    transition: background 0.2s;
+    text-decoration: none;
+    position: relative;
+}
+
+.chat-item:hover {
+    background: #1D1630;
+}
+
+.chat-item.active {
+    background: #271E42;
+    border-left: 4px solid var(--vibrant-lavender);
+}
+
+.chat-item .avatar-circle {
+    width: 48px;
+    height: 48px;
+    font-size: 17px;
+    flex-shrink: 0;
+}
+
+.chat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-info-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+
+.chat-info-top .chat-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #F5F3FF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-info-top .chat-time {
+    font-size: 11px;
+    color: #A78BFA;
+}
+
+.chat-info-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-last-msg {
+    font-size: 12.5px;
+    color: #9CA3AF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.badge-tag {
+    font-size: 10px;
+    background: var(--dark-lavender-accent);
+    color: #DDD6FE;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* ============================================================
+   RIGHT MAIN CHAT WINDOW
+   ============================================================ */
+.main-chat-window {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    background: var(--lightest-lavender-chat);
+}
+
+/* MAIN CHAT HEADER - DARK LAVENDER */
+.chat-header {
+    height: 65px;
+    background: var(--dark-lavender);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+
+.header-user-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-user-info .avatar-circle {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #8B5CF6, #5B21B6);
+}
+
+.header-user-text h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFFFFF;
+    line-height: 1.2;
+}
+
+.header-user-text p {
+    font-size: 12px;
+    color: #C4B5FD;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.online-dot {
+    width: 8px;
+    height: 8px;
+    background: #10B981;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-action-btn {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #F5F3FF;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.header-action-btn:hover {
+    background: var(--vibrant-lavender);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(109, 40, 217, 0.35);
+}
+
+.header-action-btn.call-active {
+    background: #DC2626;
+    border-color: #EF4444;
+}
+
+/* CALL STATUS BAR */
+.call-status-banner {
+    display: none;
+    background: #4C1D95;
+    color: #EDE9FE;
+    text-align: center;
+    padding: 9px 15px;
+    font-size: 13.5px;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease;
+}
+
+/* JITSI CONTAINER (CLEAN & NO PROMO ADS) */
+#jitsi-container {
+    display: none;
+    width: 100%;
+    height: 480px;
+    background: #000000;
+    position: relative;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    border-bottom: 2px solid var(--dark-lavender);
+    z-index: 10;
+}
+
+/* ============================================================
+   MAIN CHAT CONVERSATION AREA - LIGHTEST LAVENDAR
+   ============================================================ */
+.chat-messages-container {
+    flex: 1;
+    background-color: var(--lightest-lavender-chat);
+    background-image: 
+        radial-gradient(rgba(109, 40, 217, 0.04) 1px, transparent 1px),
+        radial-gradient(rgba(124, 58, 237, 0.03) 1px, var(--lightest-lavender-chat) 1px);
+    background-size: 24px 24px;
+    background-position: 0 0, 12px 12px;
+    padding: 20px 30px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-messages-container::-webkit-scrollbar {
+    width: 6px;
+}
+.chat-messages-container::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.25);
+    border-radius: 4px;
+}
+
+/* DATE PILL (WHATSAPP STYLE) */
+.date-divider {
+    align-self: center;
+    background: #E9D5FF;
+    color: #5B21B6;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    margin: 5px 0 15px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* MESSAGE BUBBLE - WHATSAPP STYLE */
+.message-bubble {
+    max-width: 65%;
+    min-width: 90px;
+    padding: 8px 12px 6px 12px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    word-wrap: break-word;
+    position: relative;
+    box-shadow: 0 1.5px 3px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    animation: bubbleSlide 0.18s ease-out;
+}
+
+@keyframes bubbleSlide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* SENT BUBBLE (OUTGOING) - SOFT LAVENDER */
+.message-bubble.sent {
+    align-self: flex-end;
+    background-color: var(--sent-bubble-bg);
+    color: #1E1B4B;
+    border-radius: 12px 12px 2px 12px;
+}
+
+/* Tail for sent bubble */
+.message-bubble.sent::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: -7px;
+    width: 0;
+    height: 0;
+    border-bottom: 9px solid var(--sent-bubble-bg);
+    border-right: 9px solid transparent;
+}
+
+/* RECEIVED BUBBLE (INCOMING) - CLEAN WHITE */
+.message-bubble.received {
+    align-self: flex-start;
+    background-color: var(--received-bubble-bg);
+    color: #1E1B4B;
+    border-radius: 12px 12px 12px 2px;
+}
+
+/* Tail for received bubble */
+.message-bubble.received::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: -7px;
+    width: 0;
+    height: 0;
+    border-bottom: 9px solid var(--received-bubble-bg);
+    border-left: 9px solid transparent;
+}
+
+.message-text {
+    margin-bottom: 2px;
+    color: #1E1B4B;
+}
+
+/* TIMESTAMP WITH WHATSAPP CHECKMARK */
+.message-meta {
+    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: -2px;
+    margin-left: 20px;
+}
+
+.message-time {
+    font-size: 10.5px;
+    color: #6D28D9;
+    font-weight: 500;
+}
+
+.message-bubble.received .message-time {
+    color: #6B7280;
+}
+
+.message-status-check {
+    font-size: 12px;
+    color: var(--whatsapp-check);
+    line-height: 1;
+}
+
+/* ============================================================
+   BOTTOM INPUT AREA - WHATSAPP STYLE
+   ============================================================ */
+.chat-input-bar {
+    background: #FFFFFF;
+    border-top: 1px solid var(--lightest-lavender-border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 5;
+}
+
+.input-icon-btn {
+    background: transparent;
+    border: none;
+    color: #6B7280;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-icon-btn:hover {
+    color: var(--vibrant-lavender);
+    background: #F3E8FF;
+}
+
+.message-input-form {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.message-input-field {
+    flex: 1;
+    background: #F3EEFB;
+    border: 1px solid #E9D5FF;
+    border-radius: 22px;
+    padding: 11px 18px;
+    font-size: 14.5px;
+    color: #1E1B4B;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.message-input-field:focus {
+    background: #FFFFFF;
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+.send-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--dark-lavender);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.send-button:hover {
+    background: var(--vibrant-lavender);
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(109, 40, 217, 0.35);
+}
+
+/* ============================================================
+   INCOMING CALL OVERLAY (PULSING WHATSAPP STYLE)
+   ============================================================ */
+#incoming-call-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 8, 18, 0.82);
+    backdrop-filter: blur(8px);
+    z-index: 99999;
+    justify-content: center;
+    align-items: center;
+}
+
+.incoming-call-card {
+    background: #FFFFFF;
+    width: 380px;
+    padding: 35px 25px;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    text-align: center;
+    border: 1px solid #E9D5FF;
+    animation: popIn 0.3s ease;
+}
+
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.pulse-ring-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C3AED, #4C1D95);
+    color: white;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px auto;
+    position: relative;
+    box-shadow: 0 0 0 0 rgba(109, 40, 217, 0.7);
+    animation: pulseRing 1.4s infinite;
+}
+
+@keyframes pulseRing {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(109, 40, 217, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(109, 40, 217, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(109, 40, 217, 0); }
+}
+
+.incoming-call-card h2 {
+    color: var(--dark-lavender);
+    font-size: 21px;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.incoming-call-card p {
+    color: #6B7280;
+    font-size: 14px;
+    margin-bottom: 25px;
+}
+
+.call-actions-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+.call-btn-accept {
+    background: #10B981;
+    color: white;
+    border: none;
+    padding: 12px 26px;
+    border-radius: 24px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    transition: all 0.2s;
+}
+
+.call-btn-accept:hover {
+    background: #059669;
+    transform: translateY(-2px);
+}
+
+.call-btn-reject {
+    background: #EF4444;
+    color: white;
+    border: none;
+    padding: 12px 26px;
+    border-radius: 24px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+    transition: all 0.2s;
+}
+
+.call-btn-reject:hover {
+    background: #DC2626;
+    transform: translateY(-2px);
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .sidebar {
+        width: 85px;
+        min-width: 85px;
+    }
+    .user-meta, .sidebar-search-box, .chat-info {
+        display: none;
+    }
+    .chat-item {
+        justify-content: center;
+        padding: 12px 0;
+    }
+}
 </style>
-
 </head>
-
 
 <body>
 
+<div class="whatsapp-app">
 
-<div class="chat-container">
-
-
-    <div class="header">
-
-        Chat
-
-    </div>
-
-
-    <!-- JITSI VIDEO CALL -->
-
-    <div id="jitsi-container"></div>
-
-
-    <!-- MESSAGES -->
-
-    <div class="messages">
-
-        {% for msg in messages %}
-
-            {% if msg.sender_id == session['student_id'] %}
-
-                <div class="sent">
-
-                    {{msg.message}}
-
+    <!-- ========================================================
+         LEFT SIDEBAR (CONTACTS & RECENTS)
+         ======================================================== -->
+    <div class="sidebar">
+        <!-- TOP PROFILE BAR - DARK LAVENDER -->
+        <div class="sidebar-header">
+            <div class="user-profile-badge">
+                <div class="avatar-circle">
+                    {{ current_student.name[0] if current_student and current_student.name else 'ME' }}
                 </div>
+                <div class="user-meta">
+                    <h4>{{ current_student.name if current_student else 'My Profile' }}</h4>
+                    <span>{{ current_student.department if current_student else 'Student' }}</span>
+                </div>
+            </div>
+            <div class="sidebar-actions">
+                <a href="/connect" title="Find Connections"><i class="fa-solid fa-user-plus"></i></a>
+                <a href="/dashboard" title="Dashboard"><i class="fa-solid fa-house"></i></a>
+            </div>
+        </div>
 
+        <!-- SEARCH BAR -->
+        <div class="sidebar-search-box">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="contactSearch" placeholder="Search or start new chat" oninput="filterContacts()">
+            </div>
+        </div>
+
+        <!-- CONTACTS LIST -->
+        <div class="chats-list" id="chatsListContainer">
+            {% if contacts and contacts|length > 0 %}
+                {% for contact in contacts %}
+                <a href="/chat/{{ contact.id }}" class="chat-item {% if contact.id == receiver_id %}active{% endif %}">
+                    <div class="avatar-circle">
+                        {{ contact.name[0] if contact.name else 'S' }}
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-info-top">
+                            <span class="chat-name">{{ contact.name }}</span>
+                            <span class="chat-time">{{ contact.last_time if contact.last_time else '' }}</span>
+                        </div>
+                        <div class="chat-info-bottom">
+                            <span class="chat-last-msg">{{ contact.last_message if contact.last_message else 'Tap to chat' }}</span>
+                            <span class="badge-tag">{{ contact.department }}</span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
             {% else %}
-
-                <div class="received">
-
-                    {{msg.message}}
-
+                <div style="padding: 30px 20px; text-align: center; color: #9CA3AF; font-size: 13.5px;">
+                    <i class="fa-solid fa-users" style="font-size: 32px; color: #6D28D9; margin-bottom: 12px; display: block;"></i>
+                    No other connections yet.<br>
+                    <a href="/connect" style="color: #DDD6FE; font-weight: 600; text-decoration: underline; margin-top: 8px; display: inline-block;">Connect with students</a>
                 </div>
-
             {% endif %}
-
-        {% endfor %}
-
+        </div>
     </div>
 
+    <!-- ========================================================
+         RIGHT MAIN CHAT WINDOW
+         ======================================================== -->
+    <div class="main-chat-window">
+        <!-- HEADER - DARK LAVENDER -->
+        <div class="chat-header">
+            <div class="header-user-info">
+                <div class="avatar-circle">
+                    {{ receiver.name[0] if receiver and receiver.name else 'P' }}
+                </div>
+                <div class="header-user-text">
+                    <h3>{{ receiver.name if receiver else 'Peer Chat' }}</h3>
+                    <p>
+                        <span class="online-dot"></span>
+                        <span>{{ receiver.department if receiver else 'Peer' }} {% if receiver and receiver.year %}• Year {{ receiver.year }}{% endif %}</span>
+                    </p>
+                </div>
+            </div>
 
-    <!-- MESSAGE INPUT -->
+            <div class="chat-header-actions">
+                <!-- VIDEO CALL BUTTON (JITSI TRIGGER) -->
+                <button type="button" class="header-action-btn" id="startCallBtn" onclick="startCall()">
+                    <i class="fa-solid fa-video"></i>
+                    <span>Video Call</span>
+                </button>
+                <a href="/profile" class="header-action-btn" title="View Profile">
+                    <i class="fa-solid fa-user"></i>
+                </a>
+                <a href="/dashboard" class="header-action-btn" title="Exit to Dashboard">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </a>
+            </div>
+        </div>
 
-    <form method="POST" class="input-area">
+        <!-- CALL STATUS BANNER -->
+        <div id="call-status" class="call-status-banner">
+            <span id="call-status-text">Calling...</span>
+        </div>
 
-        <input
-            type="text"
-            name="message"
-            placeholder="Type your message..."
-            required>
+        <!-- JITSI CONTAINER (CLEAN & ZERO ADS) -->
+        <div id="jitsi-container"></div>
 
-        <button type="submit">
+        <!-- MAIN MESSAGES CONTAINER - LIGHTEST LAVENDER -->
+        <div class="chat-messages-container" id="messagesContainer">
+            <div class="date-divider">Today</div>
 
-            Send
+            {% for msg in messages %}
+                {% if msg.sender_id == session['student_id'] %}
+                <!-- SENT MESSAGE (RIGHT) -->
+                <div class="message-bubble sent">
+                    <div class="message-text">{{ msg.message }}</div>
+                    <div class="message-meta">
+                        <span class="message-time">{{ msg.created_at }}</span>
+                        <span class="message-status-check">✓✓</span>
+                    </div>
+                </div>
+                {% else %}
+                <!-- RECEIVED MESSAGE (LEFT) -->
+                <div class="message-bubble received">
+                    <div class="message-text">{{ msg.message }}</div>
+                    <div class="message-meta">
+                        <span class="message-time">{{ msg.created_at }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
 
-        </button>
+        <!-- BOTTOM INPUT BAR -->
+        <div class="chat-input-bar">
+            <button type="button" class="input-icon-btn" title="Emoji" onclick="insertEmoji('😊')">
+                <i class="fa-regular fa-face-smile"></i>
+            </button>
+            <button type="button" class="input-icon-btn" title="Attach file" onclick="insertEmoji('📎')">
+                <i class="fa-solid fa-paperclip"></i>
+            </button>
 
-    </form>
-
-
-    <!-- VIDEO CALL BUTTON -->
-
-    <button
-        type="button"
-        class="video-button"
-        onclick="startVideoCall()">
-
-        📹 Start Video Call
-
-    </button>
-
+            <form id="chatForm" onsubmit="handleSendMessage(event)" class="message-input-form">
+                <input
+                    type="text"
+                    id="messageInput"
+                    name="message"
+                    class="message-input-field"
+                    placeholder="Type a message..."
+                    autocomplete="off"
+                    required
+                >
+                <button type="submit" class="send-button" title="Send Message">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
 
 </div>
 
+<!-- ========================================================
+     INCOMING CALL OVERLAY (PULSING RING)
+     ======================================================== -->
+<div id="incoming-call-overlay">
+    <div class="incoming-call-card">
+        <div class="pulse-ring-avatar">
+            <i class="fa-solid fa-video"></i>
+        </div>
+        <h2>Incoming Video Call</h2>
+        <p id="caller-text">Someone is calling you...</p>
 
-<!-- JITSI EXTERNAL API -->
-
-<script src="https://meet.jit.si/external_api.js"></script>
-
+        <div class="call-actions-row">
+            <button type="button" class="call-btn-accept" onclick="acceptCall()">
+                <i class="fa-solid fa-phone"></i> Accept
+            </button>
+            <button type="button" class="call-btn-reject" onclick="rejectCall()">
+                <i class="fa-solid fa-phone-slash"></i> Decline
+            </button>
+        </div>
+    </div>
+</div>
 
 <script>
+/* ============================================================
+   1. SOCKET.IO & STATE
+   ============================================================ */
+const socket = io();
+const receiverId = {{ receiver_id|tojson }};
+const myStudentId = {{ session['student_id']|tojson }};
+const messagesContainer = document.getElementById("messagesContainer");
+const messageInput = document.getElementById("messageInput");
 
+let currentCallId = null;
+let currentRoomName = null;
 let jitsiApi = null;
 
+// Auto-scroll to latest message on load
+function scrollToBottom() {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+scrollToBottom();
 
-function startVideoCall(){
-
-    const container = document.getElementById("jitsi-container");
-
-
-    // Show video area
-
-    container.style.display = "block";
-
-
-    // Prevent creating multiple Jitsi sessions
-
-    if(jitsiApi !== null){
-
-        return;
-
-    }
-
-
-    jitsiApi = new JitsiMeetExternalAPI(
-
-        "meet.jit.si",
-
-        {
-
-            roomName: "{{ room_name }}",
-
-            parentNode: container,
-
-            width: "100%",
-
-            height: "400px",
-
-            configOverwrite: {
-
-                startWithAudioMuted: false,
-
-                startWithVideoMuted: false
-
-            },
-
-            interfaceConfigOverwrite: {
-
-                SHOW_JITSI_WATERMARK: false,
-
-                SHOW_WATERMARK_FOR_GUESTS: false,
-
-                TOOLBAR_BUTTONS: [
-
-                    "microphone",
-
-                    "camera",
-
-                    "chat",
-
-                    "desktop",
-
-                    "fullscreen",
-
-                    "hangup"
-
-                ]
-
-            }
-
-        }
-
-    );
-
+// Emoji shortcut helper
+function insertEmoji(emoji) {
+    messageInput.value += emoji + " ";
+    messageInput.focus();
 }
 
+// Contacts live search filter
+function filterContacts() {
+    const q = document.getElementById("contactSearch").value.toLowerCase();
+    const items = document.querySelectorAll(".chats-list .chat-item");
+    items.forEach(item => {
+        const name = item.querySelector(".chat-name").innerText.toLowerCase();
+        const msg = item.querySelector(".chat-last-msg").innerText.toLowerCase();
+        if (name.includes(q) || msg.includes(q)) {
+            item.style.display = "flex";
+        } else {
+            item.style.display = "none";
+        }
+    });
+}
+
+/* ============================================================
+   2. REAL-TIME WHATSAPP MESSAGING (Socket.IO + REST Fallback)
+   ============================================================ */
+function formatCurrentTime() {
+    const now = new Date();
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+    const strHours = hours < 10 ? '0' + hours : hours;
+    return `${strHours}:${minutes} ${ampm}`;
+}
+
+function appendMessage(text, isSent, timeStr) {
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble " + (isSent ? "sent" : "received");
+
+    const time = timeStr || formatCurrentTime();
+    const checkmarkHtml = isSent ? '<span class="message-status-check">✓✓</span>' : '';
+
+    bubble.innerHTML = `
+        <div class="message-text"></div>
+        <div class="message-meta">
+            <span class="message-time">${time}</span>
+            ${checkmarkHtml}
+        </div>
+    `;
+
+    // Safely insert text to prevent XSS
+    bubble.querySelector(".message-text").innerText = text;
+
+    messagesContainer.appendChild(bubble);
+    scrollToBottom();
+}
+
+// Send Message handler (instant real-time send without full page refresh)
+function handleSendMessage(e) {
+    if (e) e.preventDefault();
+    const text = messageInput.value.trim();
+    if (!text) return;
+
+    const timeStr = formatCurrentTime();
+
+    // 1. Instantly append sent bubble to DOM
+    appendMessage(text, true, timeStr);
+    messageInput.value = "";
+    messageInput.focus();
+
+    // 2. Emit over Socket.IO for instant delivery
+    socket.emit("send_message", {
+        receiver_id: receiverId,
+        message: text
+    });
+
+    // 3. Persist to server via background AJAX fallback
+    fetch("/api/send-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            receiver_id: receiverId,
+            message: text
+        })
+    }).catch(err => console.log("Message background sync:", err));
+}
+
+// Receive Real-Time Message from Peer
+socket.on("receive_message", function(data) {
+    if (data.sender_id === receiverId) {
+        appendMessage(data.message, false, data.created_at);
+    }
+});
+
+/* ============================================================
+   3. JITSI VIDEO CALL (100% CLEAN - NO PROMO ADS / REDIRECTS)
+   ============================================================ */
+function showCallStatus(msg) {
+    const banner = document.getElementById("call-status");
+    document.getElementById("call-status-text").innerText = msg;
+    banner.style.display = "block";
+}
+
+function hideCallStatus() {
+    document.getElementById("call-status").style.display = "none";
+}
+
+// Start Call (Student A)
+function startCall() {
+    if (currentCallId) return;
+    currentCallId = "calling";
+    showCallStatus("📞 Calling peer...");
+    socket.emit("start_call", { receiver_id: receiverId });
+}
+
+// Incoming Call (Student B)
+socket.on("incoming_call", function(data) {
+    currentCallId = data.call_id;
+    currentRoomName = data.room_name;
+    document.getElementById("caller-text").innerText = data.caller_name + " is video calling you...";
+    document.getElementById("incoming-call-overlay").style.display = "flex";
+});
+
+// Accept Call (Student B)
+function acceptCall() {
+    if (!currentCallId) return;
+    document.getElementById("incoming-call-overlay").style.display = "none";
+    showCallStatus("Connecting video call...");
+    socket.emit("accept_call", { call_id: currentCallId });
+}
+
+// Reject Call (Student B)
+function rejectCall() {
+    if (!currentCallId) return;
+    document.getElementById("incoming-call-overlay").style.display = "none";
+    socket.emit("reject_call", { call_id: currentCallId });
+    currentCallId = null;
+    currentRoomName = null;
+    hideCallStatus();
+}
+
+// Peer Accepted (Student A & B connect)
+socket.on("call_accepted", function(data) {
+    currentCallId = data.call_id;
+    currentRoomName = data.room_name;
+    showCallStatus("Video call connected");
+    startJitsiCall(data.room_name);
+});
+
+socket.on("call_connected", function(data) {
+    currentCallId = data.call_id;
+    currentRoomName = data.room_name;
+    showCallStatus("Video call connected");
+    startJitsiCall(data.room_name);
+});
+
+// Peer Rejected
+socket.on("call_rejected", function(data) {
+    if (currentCallId !== data.call_id && currentCallId !== "calling") return;
+    currentCallId = null;
+    currentRoomName = null;
+    showCallStatus("❌ Call declined");
+    setTimeout(hideCallStatus, 3000);
+});
+
+socket.on("call_already_ringing", function() {
+    showCallStatus("Already ringing...");
+});
+
+// Launch Jitsi with configurations that PREVENT ALL PROMOTIONAL ADS
+function startJitsiCall(roomName) {
+    const container = document.getElementById("jitsi-container");
+    container.style.display = "block";
+
+    if (jitsiApi !== null) return;
+
+    // Strict config to prevent any promotional landing or close page
+    const options = {
+        roomName: roomName,
+        parentNode: container,
+        width: "100%",
+        height: "100%",
+        configOverwrite: {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            enableClosePage: false,                // Disables 8x8 promotional close page
+            enableWelcomePage: false,              // Disables landing page
+            prejoinPageEnabled: false,             // Skips prejoin ad screens
+            disableDeepLinking: true,              // Prevents app store / promo banners
+            SHOW_PROMOTIONAL_CLOSE_PAGE: false     // Explicitly turn off promotional ads
+        },
+        interfaceConfigOverwrite: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            SHOW_BRAND_WATERMARK: false,
+            SHOW_POWERED_BY: false,
+            SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+            TOOLBAR_BUTTONS: [
+                "microphone",
+                "camera",
+                "desktop",
+                "chat",
+                "fullscreen",
+                "hangup"
+            ]
+        }
+    };
+
+    jitsiApi = new JitsiMeetExternalAPI("meet.jit.si", options);
+
+    // CRITICAL: When hangup occurs, immediately dispose the iframe so no post-call ad ever renders!
+    jitsiApi.addEventListener("videoConferenceLeft", function() {
+        endCallCleanly();
+    });
+
+    jitsiApi.addEventListener("readyToClose", function() {
+        endCallCleanly();
+    });
+}
+
+function endCallCleanly() {
+    if (jitsiApi) {
+        try {
+            jitsiApi.dispose();
+        } catch(e) {}
+        jitsiApi = null;
+    }
+    const container = document.getElementById("jitsi-container");
+    container.style.display = "none";
+    container.innerHTML = "";
+    showCallStatus("Video call ended");
+    setTimeout(hideCallStatus, 3000);
+    currentCallId = null;
+    currentRoomName = null;
+}
 </script>
 
-
 </body>
-
 </html>
