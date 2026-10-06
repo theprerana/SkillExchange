@@ -1,10 +1,18 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
+from flask_socketio import SocketIO, emit, join_room
+from datetime import datetime
 import sqlite3
+import uuid
 import firebase_admin
 from firebase_admin import credentials, auth
 
 app = Flask(__name__)
 app.secret_key = "skill_exchange_secret"
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# Active video calls stored in memory for the current server session.
+active_calls = {}
 
 # Firebase Admin SDK
 if not firebase_admin._apps:
@@ -14,6 +22,7 @@ if not firebase_admin._apps:
     except Exception as e:
         print("Firebase service account initialization warning:", e)
         firebase_admin.initialize_app(options={'projectId': 'skill-exchange-1b00a'})
+
 
 
 # Database connection
@@ -86,6 +95,15 @@ try:
     cursor.execute("""
         ALTER TABLE exchange_requests
         ADD COLUMN skill_name TEXT
+    """)
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
+
+try:
+    cursor.execute("""
+        ALTER TABLE messages
+        ADD COLUMN created_at TEXT DEFAULT ''
     """)
     conn.commit()
 except sqlite3.OperationalError:
@@ -703,83 +721,171 @@ def connect():
         'connect.html',
         connections=connections
     )
-@app.route('/chat/<int:id>', methods=['GET', 'POST'])
-def chat(id):
-
+@app.route('/chat')
+def chat_home():
     if 'student_id' not in session:
         return redirect('/login')
 
+    my_id = session['student_id']
     conn = get_db_connection()
     cursor = conn.cursor()
+    cursor.execute(
+        '''
+        SELECT DISTINCT s.id
+        FROM exchange_requests er
+        JOIN students s ON (s.id = CASE WHEN er.sender_id = :my_id THEN er.receiver_id ELSE er.sender_id END)
+        WHERE (er.sender_id = :my_id OR er.receiver_id = :my_id)
+          AND er.status = 'Accepted'
+        LIMIT 1
+        ''',
+        {"my_id": my_id}
+    )
+    first_conn = cursor.fetchone()
+    conn.close()
 
-    # Send message
+    if first_conn:
+        return redirect(f"/chat/{first_conn['id']}")
+    return redirect('/connect')
+
+
+@app.route('/api/send-message', methods=['POST'])
+def api_send_message():
+    if 'student_id' not in session:
+        return {"success": False, "message": "Unauthorized"}, 401
+
+    data = request.get_json() or {}
+    receiver_id = data.get('receiver_id')
+    message_text = (data.get('message') or '').strip()
+
+    if not receiver_id or not message_text:
+        return {"success": False, "message": "Missing message or receiver"}, 400
+
+    try:
+        receiver_id = int(receiver_id)
+    except (ValueError, TypeError):
+        return {"success": False, "message": "Invalid receiver ID"}, 400
+
+    sender_id = session['student_id']
+    now_time = datetime.now().strftime("%I:%M %p")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        INSERT INTO messages (sender_id, receiver_id, message, created_at)
+        VALUES (?, ?, ?, ?)
+        ''',
+        (sender_id, receiver_id, message_text, now_time)
+    )
+    msg_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    payload = {
+        'id': msg_id,
+        'sender_id': sender_id,
+        'receiver_id': receiver_id,
+        'message': message_text,
+        'created_at': now_time
+    }
+
+    socketio.emit('receive_message', payload, to=f"student_{receiver_id}")
+    return {"success": True, "data": payload}
+
+
+@app.route('/chat/<int:id>', methods=['GET', 'POST'])
+def chat(id):
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    my_id = session['student_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_time = datetime.now().strftime("%I:%M %p")
+
+    # Send message (fallback form POST)
     if request.method == 'POST':
-
-        message = request.form['message']
-
-        cursor.execute(
-            '''
-            INSERT INTO messages(
-            sender_id,
-            receiver_id,
-            message
+        message = request.form.get('message', '').strip()
+        if message:
+            cursor.execute(
+                '''
+                INSERT INTO messages(sender_id, receiver_id, message, created_at)
+                VALUES(?,?,?,?)
+                ''',
+                (my_id, id, message, now_time)
             )
+            conn.commit()
 
-            VALUES(?,?,?)
-            ''',
+    # Receiver details
+    cursor.execute('SELECT * FROM students WHERE id=?', (id,))
+    receiver = cursor.fetchone()
 
-            (
-                session['student_id'],
-                id,
-                message
-            )
-        )
-
-        conn.commit()
-
+    # Current student details
+    cursor.execute('SELECT * FROM students WHERE id=?', (my_id,))
+    current_student = cursor.fetchone()
 
     # Fetch all messages between both users
     cursor.execute(
         '''
         SELECT *
         FROM messages
-
-        WHERE
-
-        (sender_id=? AND receiver_id=?)
-
-        OR
-
-        (sender_id=? AND receiver_id=?)
-
-        ORDER BY id
+        WHERE (sender_id=? AND receiver_id=?)
+           OR (sender_id=? AND receiver_id=?)
+        ORDER BY id ASC
         ''',
-
-        (
-            session['student_id'],
-            id,
-
-            id,
-            session['student_id']
-        )
+        (my_id, id, id, my_id)
     )
+    raw_messages = cursor.fetchall()
+    messages = []
+    for m in raw_messages:
+        m_dict = dict(m)
+        if not m_dict.get('created_at'):
+            m_dict['created_at'] = now_time
+        messages.append(m_dict)
 
-    messages = cursor.fetchall()
+    # Fetch all accepted connections for contacts sidebar
+    cursor.execute(
+        '''
+        SELECT DISTINCT
+            s.id,
+            s.name,
+            s.department,
+            s.year,
+            (SELECT message FROM messages
+             WHERE (sender_id = s.id AND receiver_id = :my_id)
+                OR (sender_id = :my_id AND receiver_id = s.id)
+             ORDER BY id DESC LIMIT 1) AS last_message,
+            (SELECT created_at FROM messages
+             WHERE (sender_id = s.id AND receiver_id = :my_id)
+                OR (sender_id = :my_id AND receiver_id = s.id)
+             ORDER BY id DESC LIMIT 1) AS last_time
+        FROM exchange_requests er
+        JOIN students s ON (s.id = CASE WHEN er.sender_id = :my_id THEN er.receiver_id ELSE er.sender_id END)
+        WHERE (er.sender_id = :my_id OR er.receiver_id = :my_id)
+          AND er.status = 'Accepted'
+        ''',
+        {"my_id": my_id}
+    )
+    contacts = [dict(c) for c in cursor.fetchall()]
 
     conn.close()
 
-    # Create a unique Jitsi room for this pair of connected students.
-    # Sorting the IDs ensures both users get exactly the same room name.
-    user1 = min(session['student_id'], id)
-    user2 = max(session['student_id'], id)
+    # Create a consistent Jitsi room for these two students.
+    user1 = min(my_id, id)
+    user2 = max(my_id, id)
     room_name = f"SkillExchange-{user1}-{user2}"
 
     return render_template(
         'chat.html',
         messages=messages,
+        receiver=receiver,
         receiver_id=id,
+        current_student=current_student,
+        contacts=contacts,
+        connections=contacts,
         room_name=room_name
     )
+
 
 
 
@@ -896,5 +1002,253 @@ def students():
 def contact():
     return render_template("contact.html")
 
+# ============================================================
+# REAL-TIME CHAT & VIDEO CALL SIGNALING (Socket.IO)
+# ============================================================
+
+@socketio.on('connect')
+def handle_connect():
+    """Put each logged-in student into a private Socket.IO room."""
+    student_id = session.get('student_id')
+
+    if student_id is not None:
+        join_room(f"student_{student_id}")
+        print(f"Student {student_id} connected to Socket.IO")
+
+
+@socketio.on('send_chat_message')
+def handle_send_chat_message(data):
+    """Handle instant WhatsApp-style real-time chat messaging."""
+    sender_id = session.get('student_id')
+    receiver_id = data.get('receiver_id') if data else None
+    message_text = data.get('message', '').strip() if data else ''
+
+    if not sender_id or not receiver_id or not message_text:
+        return
+
+    try:
+        sender_id = int(sender_id)
+        receiver_id = int(receiver_id)
+    except (TypeError, ValueError):
+        return
+
+    # Save into database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        INSERT INTO messages(sender_id, receiver_id, message)
+        VALUES(?,?,?)
+        ''',
+        (sender_id, receiver_id, message_text)
+    )
+    conn.commit()
+    msg_id = cursor.lastrowid
+    conn.close()
+
+    payload = {
+        'id': msg_id,
+        'sender_id': sender_id,
+        'receiver_id': receiver_id,
+        'message': message_text
+    }
+
+    # Broadcast to receiver and sender
+    emit('receive_chat_message', payload, to=f"student_{receiver_id}")
+    emit('receive_chat_message', payload, to=f"student_{sender_id}")
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Clean up ringing calls if a user disconnects."""
+    student_id = session.get('student_id')
+
+    if student_id is None:
+        return
+
+    student_id = int(student_id)
+
+    for call_id, call in list(active_calls.items()):
+        if call['caller_id'] == student_id and call['status'] == 'ringing':
+            emit('call_rejected', {'call_id': call_id}, to=f"student_{call['receiver_id']}")
+            del active_calls[call_id]
+        elif call['receiver_id'] == student_id and call['status'] == 'ringing':
+            emit('call_rejected', {'call_id': call_id}, to=f"student_{call['caller_id']}")
+            del active_calls[call_id]
+
+
+@socketio.on('send_message')
+def handle_socket_send_message(data):
+    """Real-time message sending between peers."""
+    sender_id = session.get('student_id')
+    receiver_id = data.get('receiver_id') if data else None
+    message_text = (data.get('message') or '').strip() if data else ''
+
+    if not sender_id or not receiver_id or not message_text:
+        return
+
+    try:
+        sender_id = int(sender_id)
+        receiver_id = int(receiver_id)
+    except (ValueError, TypeError):
+        return
+
+    now_time = datetime.now().strftime("%I:%M %p")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        INSERT INTO messages (sender_id, receiver_id, message, created_at)
+        VALUES (?, ?, ?, ?)
+        ''',
+        (sender_id, receiver_id, message_text, now_time)
+    )
+    msg_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    payload = {
+        'id': msg_id,
+        'sender_id': sender_id,
+        'receiver_id': receiver_id,
+        'message': message_text,
+        'created_at': now_time
+    }
+
+    emit('receive_message', payload, to=f"student_{receiver_id}")
+    emit('message_sent', payload)
+
+
+@socketio.on('start_call')
+def handle_start_call(data):
+    """Caller starts ringing the selected receiver."""
+    caller_id = session.get('student_id')
+    receiver_id = data.get('receiver_id') if data else None
+
+    if caller_id is None or receiver_id is None:
+        return
+
+    try:
+        caller_id = int(caller_id)
+        receiver_id = int(receiver_id)
+    except (TypeError, ValueError):
+        return
+
+    if caller_id == receiver_id:
+        return
+
+    # One stable Jitsi room for this pair.
+    user1 = min(caller_id, receiver_id)
+    user2 = max(caller_id, receiver_id)
+    room_name = f"SkillExchange-{user1}-{user2}"
+
+    call_id = str(uuid.uuid4())
+
+    # If the same caller already has a ringing call to this receiver,
+    # do not create another one.
+    for existing_id, existing_call in active_calls.items():
+        if (existing_call['caller_id'] == caller_id and
+                existing_call['receiver_id'] == receiver_id and
+                existing_call['status'] == 'ringing'):
+            emit('call_already_ringing', {'call_id': existing_id})
+            return
+
+    # Get caller name for the popup.
+    caller_name = f"Student {caller_id}"
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT name FROM students WHERE id=?', (caller_id,))
+    caller = cursor.fetchone()
+    if caller and caller['name']:
+        caller_name = caller['name']
+    conn.close()
+
+    active_calls[call_id] = {
+        'caller_id': caller_id,
+        'receiver_id': receiver_id,
+        'room_name': room_name,
+        'status': 'ringing'
+    }
+
+    print('CALL STARTED:', active_calls[call_id])
+
+    # Send the ring ONLY to the receiver, not to every connected user.
+    emit(
+        'incoming_call',
+        {
+            'call_id': call_id,
+            'caller_id': caller_id,
+            'caller_name': caller_name,
+            'room_name': room_name
+        },
+        to=f"student_{receiver_id}"
+    )
+
+
+@socketio.on('accept_call')
+def handle_accept_call(data):
+    """Receiver accepts and tells the caller to join the same Jitsi room."""
+    call_id = data.get('call_id') if data else None
+
+    if call_id not in active_calls:
+        return
+
+    call = active_calls[call_id]
+    receiver_id = session.get('student_id')
+
+    if receiver_id != call['receiver_id']:
+        return
+
+    call['status'] = 'accepted'
+
+    print('CALL ACCEPTED:', call_id)
+
+    # Tell the caller that the receiver accepted.
+    emit(
+        'call_accepted',
+        {
+            'call_id': call_id,
+            'room_name': call['room_name']
+        },
+        to=f"student_{call['caller_id']}"
+    )
+
+    # Tell the receiver to open Jitsi too.
+    emit(
+        'call_connected',
+        {
+            'call_id': call_id,
+            'room_name': call['room_name']
+        },
+        to=f"student_{call['receiver_id']}"
+    )
+
+
+@socketio.on('reject_call')
+def handle_reject_call(data):
+    """Receiver rejects and tells the caller that the call was rejected."""
+    call_id = data.get('call_id') if data else None
+
+    if call_id not in active_calls:
+        return
+
+    call = active_calls[call_id]
+    receiver_id = session.get('student_id')
+
+    if receiver_id != call['receiver_id']:
+        return
+
+    print('CALL REJECTED:', call_id)
+
+    emit(
+        'call_rejected',
+        {'call_id': call_id},
+        to=f"student_{call['caller_id']}"
+    )
+
+    del active_calls[call_id]
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
