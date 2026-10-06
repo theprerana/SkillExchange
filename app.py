@@ -878,12 +878,14 @@ def chat(id):
     return render_template(
         'chat.html',
         messages=messages,
-        receiver_id=id,
         receiver=receiver,
+        receiver_id=id,
         current_student=current_student,
         contacts=contacts,
+        connections=contacts,
         room_name=room_name
     )
+
 
 
 
@@ -1001,7 +1003,7 @@ def contact():
     return render_template("contact.html")
 
 # ============================================================
-# VIDEO CALL SIGNALING (Socket.IO)
+# REAL-TIME CHAT & VIDEO CALL SIGNALING (Socket.IO)
 # ============================================================
 
 @socketio.on('connect')
@@ -1012,6 +1014,48 @@ def handle_connect():
     if student_id is not None:
         join_room(f"student_{student_id}")
         print(f"Student {student_id} connected to Socket.IO")
+
+
+@socketio.on('send_chat_message')
+def handle_send_chat_message(data):
+    """Handle instant WhatsApp-style real-time chat messaging."""
+    sender_id = session.get('student_id')
+    receiver_id = data.get('receiver_id') if data else None
+    message_text = data.get('message', '').strip() if data else ''
+
+    if not sender_id or not receiver_id or not message_text:
+        return
+
+    try:
+        sender_id = int(sender_id)
+        receiver_id = int(receiver_id)
+    except (TypeError, ValueError):
+        return
+
+    # Save into database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        INSERT INTO messages(sender_id, receiver_id, message)
+        VALUES(?,?,?)
+        ''',
+        (sender_id, receiver_id, message_text)
+    )
+    conn.commit()
+    msg_id = cursor.lastrowid
+    conn.close()
+
+    payload = {
+        'id': msg_id,
+        'sender_id': sender_id,
+        'receiver_id': receiver_id,
+        'message': message_text
+    }
+
+    # Broadcast to receiver and sender
+    emit('receive_chat_message', payload, to=f"student_{receiver_id}")
+    emit('receive_chat_message', payload, to=f"student_{sender_id}")
 
 
 @socketio.on('disconnect')

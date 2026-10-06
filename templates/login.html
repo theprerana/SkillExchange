@@ -198,6 +198,13 @@
     <div id="message"></div>
 
 
+    <div style="margin-top: 15px; text-align: center;">
+        <a href="javascript:void(0)" id="directResendLink" style="color: #6c757d; font-size: 13px; text-decoration: underline;">
+            Didn't receive verification email? Resend
+        </a>
+    </div>
+
+
     <div class="register">
 
         Don't have an account?
@@ -240,7 +247,9 @@
 
         reload,
 
-        signOut
+        signOut,
+
+        sendEmailVerification
 
     }
 
@@ -294,6 +303,39 @@
 
     const message =
         document.getElementById("message");
+
+
+    const directResendLink =
+        document.getElementById("directResendLink");
+
+
+    // =====================================================
+    // DIRECT RESEND LINK HANDLER
+    // =====================================================
+
+    if (directResendLink) {
+        directResendLink.addEventListener("click", async function() {
+            const email = document.querySelector('[name="email"]').value.trim();
+            const password = document.querySelector('[name="password"]').value;
+
+            if (!email || !password) {
+                alert("Please enter your Email Address and Password first, then click Resend.");
+                return;
+            }
+
+            try {
+                directResendLink.innerText = "Sending...";
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                await sendEmailVerification(userCredential.user);
+                await signOut(auth);
+                alert("Verification email sent to " + email + "!\n\nPlease check your Inbox and Spam/Junk folder.");
+                directResendLink.innerText = "Verification Email Sent!";
+            } catch (error) {
+                alert("Could not send verification email: " + error.message);
+                directResendLink.innerText = "Didn't receive verification email? Resend";
+            }
+        });
+    }
 
 
 
@@ -369,14 +411,35 @@
 
             if (!user.emailVerified) {
 
+                message.innerHTML = `
+                    <div style="margin-top: 10px; color: #d9534f; font-size: 14px;">
+                        Please verify your email before logging in.<br>
+                        <button type="button" id="popupResendBtn" style="margin-top: 10px; background: #28a745; color: white; border: none; padding: 7px 14px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            Resend Verification Email
+                        </button>
+                    </div>
+                `;
 
-                message.innerText =
-                    "Please verify your email before logging in.";
-
+                const popupResendBtn = document.getElementById("popupResendBtn");
+                if (popupResendBtn) {
+                    popupResendBtn.addEventListener("click", async () => {
+                        try {
+                            popupResendBtn.disabled = true;
+                            popupResendBtn.innerText = "Sending...";
+                            await sendEmailVerification(user);
+                            alert("A fresh verification email has been sent to " + email + ".\n\nPlease check your Inbox and Spam/Junk folder.");
+                            popupResendBtn.innerText = "Email Sent!";
+                        } catch (err) {
+                            alert("Error sending email: " + err.message);
+                            popupResendBtn.disabled = false;
+                            popupResendBtn.innerText = "Resend Verification Email";
+                        }
+                    });
+                }
 
                 alert(
                     "Please verify your email first.\n\n" +
-                    "Check your email and click the verification link."
+                    "Check your email (and Spam folder) for the verification link."
                 );
 
 
