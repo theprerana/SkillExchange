@@ -1127,16 +1127,34 @@ def contact():
 def handle_connect():
     """Put each logged-in student into a private Socket.IO room."""
     student_id = session.get('student_id')
-
     if student_id is not None:
-        join_room(f"student_{student_id}")
-        print(f"Student {student_id} connected to Socket.IO")
+        try:
+            join_room(f"student_{int(student_id)}")
+            print(f"Student {student_id} connected to Socket.IO")
+        except (ValueError, TypeError):
+            pass
+
+
+@socketio.on('register_student')
+def handle_register_student(data):
+    """Explicitly register student into private room for instant signaling."""
+    student_id = data.get('student_id') if data else None
+    if not student_id:
+        student_id = session.get('student_id')
+    if student_id:
+        try:
+            join_room(f"student_{int(student_id)}")
+            print(f"Student {student_id} registered into room student_{student_id}")
+        except (ValueError, TypeError):
+            pass
 
 
 @socketio.on('send_chat_message')
 def handle_send_chat_message(data):
     """Handle instant WhatsApp-style real-time chat messaging."""
-    sender_id = session.get('student_id')
+    sender_id = data.get('sender_id') if data else None
+    if not sender_id:
+        sender_id = session.get('student_id')
     receiver_id = data.get('receiver_id') if data else None
     message_text = data.get('message', '').strip() if data else ''
 
@@ -1179,11 +1197,12 @@ def handle_send_chat_message(data):
 def handle_disconnect():
     """Clean up ringing calls if a user disconnects."""
     student_id = session.get('student_id')
-
     if student_id is None:
         return
-
-    student_id = int(student_id)
+    try:
+        student_id = int(student_id)
+    except (ValueError, TypeError):
+        return
 
     for call_id, call in list(active_calls.items()):
         if call['caller_id'] == student_id and call['status'] == 'ringing':
@@ -1197,7 +1216,9 @@ def handle_disconnect():
 @socketio.on('send_message')
 def handle_socket_send_message(data):
     """Real-time message sending between peers."""
-    sender_id = session.get('student_id')
+    sender_id = data.get('sender_id') if data else None
+    if not sender_id:
+        sender_id = session.get('student_id')
     receiver_id = data.get('receiver_id') if data else None
     message_text = (data.get('message') or '').strip() if data else ''
 
@@ -1240,7 +1261,9 @@ def handle_socket_send_message(data):
 @socketio.on('start_call')
 def handle_start_call(data):
     """Caller starts ringing the selected receiver."""
-    caller_id = session.get('student_id')
+    caller_id = data.get('caller_id') if data else None
+    if not caller_id:
+        caller_id = session.get('student_id')
     receiver_id = data.get('receiver_id') if data else None
 
     if caller_id is None or receiver_id is None:
@@ -1255,7 +1278,7 @@ def handle_start_call(data):
     if caller_id == receiver_id:
         return
 
-    # One stable Jitsi room for this pair.
+    # One stable room for this pair.
     user1 = min(caller_id, receiver_id)
     user2 = max(caller_id, receiver_id)
     room_name = f"SkillExchange-{user1}-{user2}"
@@ -1263,7 +1286,7 @@ def handle_start_call(data):
     call_id = str(uuid.uuid4())
 
     # If the same caller already has a ringing call to this receiver,
-    # do not create another one.
+    # return existing call id.
     for existing_id, existing_call in active_calls.items():
         if (existing_call['caller_id'] == caller_id and
                 existing_call['receiver_id'] == receiver_id and
@@ -1290,7 +1313,7 @@ def handle_start_call(data):
 
     print('CALL STARTED:', active_calls[call_id])
 
-    # Send the ring ONLY to the receiver, not to every connected user.
+    # Send the ring ONLY to the receiver.
     emit(
         'incoming_call',
         {
@@ -1305,17 +1328,16 @@ def handle_start_call(data):
 
 @socketio.on('accept_call')
 def handle_accept_call(data):
-    """Receiver accepts and tells the caller to join the same Jitsi room."""
+    """Receiver accepts and establishes peer connection."""
     call_id = data.get('call_id') if data else None
 
     if call_id not in active_calls:
         return
 
     call = active_calls[call_id]
-    receiver_id = session.get('student_id')
-
-    if receiver_id != call['receiver_id']:
-        return
+    receiver_id = data.get('receiver_id') if data else None
+    if not receiver_id:
+        receiver_id = session.get('student_id')
 
     call['status'] = 'accepted'
 
@@ -1331,7 +1353,7 @@ def handle_accept_call(data):
         to=f"student_{call['caller_id']}"
     )
 
-    # Tell the receiver to open Jitsi too.
+    # Tell the receiver to connect too.
     emit(
         'call_connected',
         {
@@ -1344,18 +1366,13 @@ def handle_accept_call(data):
 
 @socketio.on('reject_call')
 def handle_reject_call(data):
-    """Receiver rejects and tells the caller that the call was rejected."""
+    """Receiver rejects and informs caller."""
     call_id = data.get('call_id') if data else None
 
     if call_id not in active_calls:
         return
 
     call = active_calls[call_id]
-    receiver_id = session.get('student_id')
-
-    if receiver_id != call['receiver_id']:
-        return
-
     print('CALL REJECTED:', call_id)
 
     emit(
@@ -1370,7 +1387,9 @@ def handle_reject_call(data):
 @socketio.on('cancel_call')
 def handle_cancel_call(data):
     """Caller cancels ringing before receiver answers."""
-    caller_id = session.get('student_id')
+    caller_id = data.get('caller_id') if data else None
+    if not caller_id:
+        caller_id = session.get('student_id')
     if not caller_id:
         return
     receiver_id = data.get('receiver_id') if data else None
@@ -1385,15 +1404,16 @@ def handle_cancel_call(data):
 @socketio.on('end_call')
 def handle_end_call(data):
     """Either student hangs up the video call."""
-    student_id = session.get('student_id')
+    student_id = data.get('student_id') if data else None
     if not student_id:
-        return
+        student_id = session.get('student_id')
     receiver_id = data.get('receiver_id') if data else None
-    for cid, call in list(active_calls.items()):
-        if call['caller_id'] == student_id or call['receiver_id'] == student_id:
-            other_id = call['receiver_id'] if call['caller_id'] == student_id else call['caller_id']
-            emit('call_ended', {'call_id': cid}, to=f"student_{other_id}")
-            del active_calls[cid]
+    if student_id:
+        for cid, call in list(active_calls.items()):
+            if call['caller_id'] == student_id or call['receiver_id'] == student_id:
+                other_id = call['receiver_id'] if call['caller_id'] == student_id else call['caller_id']
+                emit('call_ended', {'call_id': cid}, to=f"student_{other_id}")
+                del active_calls[cid]
     if receiver_id and receiver_id != student_id:
         emit('call_ended', {}, to=f"student_{receiver_id}")
 
@@ -1406,9 +1426,12 @@ def handle_end_call(data):
 def handle_webrtc_offer(data):
     """Relay WebRTC SDP offer to peer."""
     receiver_id = data.get('receiver_id') if data else None
+    sender_id = data.get('sender_id') if data else None
+    if not sender_id:
+        sender_id = session.get('student_id')
     if receiver_id:
         emit('webrtc_offer', {
-            'sender_id': session.get('student_id'),
+            'sender_id': sender_id,
             'offer': data.get('offer')
         }, to=f"student_{receiver_id}")
 
@@ -1417,9 +1440,12 @@ def handle_webrtc_offer(data):
 def handle_webrtc_answer(data):
     """Relay WebRTC SDP answer back to caller."""
     receiver_id = data.get('receiver_id') if data else None
+    sender_id = data.get('sender_id') if data else None
+    if not sender_id:
+        sender_id = session.get('student_id')
     if receiver_id:
         emit('webrtc_answer', {
-            'sender_id': session.get('student_id'),
+            'sender_id': sender_id,
             'answer': data.get('answer')
         }, to=f"student_{receiver_id}")
 
@@ -1428,9 +1454,12 @@ def handle_webrtc_answer(data):
 def handle_webrtc_ice_candidate(data):
     """Relay ICE candidate to peer for NAT traversal."""
     receiver_id = data.get('receiver_id') if data else None
+    sender_id = data.get('sender_id') if data else None
+    if not sender_id:
+        sender_id = session.get('student_id')
     if receiver_id:
         emit('webrtc_ice_candidate', {
-            'sender_id': session.get('student_id'),
+            'sender_id': sender_id,
             'candidate': data.get('candidate')
         }, to=f"student_{receiver_id}")
 

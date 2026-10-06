@@ -1026,6 +1026,14 @@ const myStudentId = {{ session['student_id']|tojson }};
 const messagesContainer = document.getElementById("messagesContainer");
 const messageInput = document.getElementById("messageInput");
 
+// Ensure client is always registered in their private signaling room
+socket.on("connect", function() {
+    console.log("Socket connected, registering student room:", myStudentId);
+    if (myStudentId) {
+        socket.emit("register_student", { student_id: myStudentId });
+    }
+});
+
 let currentCallId = null;
 let currentRoomName = null;
 let jitsiApi = null;
@@ -1109,6 +1117,7 @@ function handleSendMessage(e) {
 
     // 2. Emit over Socket.IO for instant delivery
     socket.emit("send_message", {
+        sender_id: myStudentId,
         receiver_id: receiverId,
         message: text
     });
@@ -1138,13 +1147,16 @@ const defaultRoomName = {{ room_name|tojson }};
 const receiverName = {{ (receiver.name if receiver and receiver.name else 'Peer')|tojson }};
 const currentStudentName = {{ session.get('name', 'Student')|tojson }};
 
-// WebRTC STUN Configuration (Ultra-fast, zero moderator login required)
+// WebRTC STUN Configuration (Ultra-fast Google + Cloudflare + Metered STUN)
 const rtcConfig = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
         { urls: "stun:stun2.l.google.com:19302" },
-        { urls: "stun:stun.cloudflare.com:3478" }
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+        { urls: "stun:stun.cloudflare.com:3478" },
+        { urls: "stun:openrelay.metered.ca:80" }
     ]
 };
 
@@ -1247,7 +1259,7 @@ async function initLocalStream() {
         }
         return localStream;
     } catch (err) {
-        console.warn("Could not get both video and audio, falling back to audio only:", err);
+        console.warn("Camera & mic not both accessible, attempting audio-only:", err);
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
             return localStream;
@@ -1291,6 +1303,7 @@ function createPeerConnection() {
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
             socket.emit("webrtc_ice_candidate", {
+                sender_id: myStudentId,
                 receiver_id: receiverId,
                 candidate: event.candidate
             });
@@ -1346,17 +1359,23 @@ async function startCall() {
     }
 
     showCallStatus(`📞 Calling ${receiverName}...`, true, true);
-    socket.emit("start_call", { receiver_id: receiverId });
+    socket.emit("start_call", {
+        caller_id: myStudentId,
+        receiver_id: receiverId
+    });
 }
 
-// Direct join backup (Jitsi link fallback)
+// Direct join backup (Jitsi link fallback in separate tab)
 function joinCallImmediately() {
     window.open(`https://meet.jit.si/${encodeURIComponent(defaultRoomName)}`, '_blank');
 }
 
 // Cancel outgoing call
 function cancelCall() {
-    socket.emit("cancel_call", { receiver_id: receiverId });
+    socket.emit("cancel_call", {
+        caller_id: myStudentId,
+        receiver_id: receiverId
+    });
     endCall(false);
     hideCallStatus();
 }
@@ -1397,13 +1416,19 @@ async function acceptCall() {
     } catch (e) {
         hideCallModal();
         if (currentCallId) {
-            socket.emit("reject_call", { call_id: currentCallId });
+            socket.emit("reject_call", {
+                call_id: currentCallId,
+                receiver_id: myStudentId
+            });
         }
         currentCallId = null;
         return;
     }
 
-    socket.emit("accept_call", { call_id: currentCallId });
+    socket.emit("accept_call", {
+        call_id: currentCallId,
+        receiver_id: myStudentId
+    });
 }
 
 // 4. REJECT CALL (Receiver)
@@ -1411,7 +1436,10 @@ function rejectCall() {
     const overlay = document.getElementById("incoming-call-overlay");
     if (overlay) overlay.style.display = "none";
     if (currentCallId) {
-        socket.emit("reject_call", { call_id: currentCallId });
+        socket.emit("reject_call", {
+            call_id: currentCallId,
+            receiver_id: myStudentId
+        });
     }
     currentCallId = null;
 }
@@ -1434,6 +1462,7 @@ socket.on("call_accepted", async function(data) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit("webrtc_offer", {
+            sender_id: myStudentId,
             receiver_id: receiverId,
             offer: offer
         });
@@ -1451,7 +1480,7 @@ socket.on("call_connected", function(data) {
 // 6. WEBRTC SIGNALING HANDLERS
 // Receiver gets offer: sets remote desc, creates answer, sends back
 socket.on("webrtc_offer", async function(data) {
-    if (data.sender_id !== receiverId) return;
+    if (data.sender_id && parseInt(data.sender_id) !== parseInt(receiverId)) return;
     const pc = createPeerConnection();
     try {
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -1459,6 +1488,7 @@ socket.on("webrtc_offer", async function(data) {
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit("webrtc_answer", {
+            sender_id: myStudentId,
             receiver_id: receiverId,
             answer: answer
         });
@@ -1469,7 +1499,7 @@ socket.on("webrtc_offer", async function(data) {
 
 // Caller gets answer: sets remote desc
 socket.on("webrtc_answer", async function(data) {
-    if (data.sender_id !== receiverId) return;
+    if (data.sender_id && parseInt(data.sender_id) !== parseInt(receiverId)) return;
     if (peerConnection) {
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -1482,7 +1512,8 @@ socket.on("webrtc_answer", async function(data) {
 
 // Both receive ICE Candidates
 socket.on("webrtc_ice_candidate", async function(data) {
-    if (data.sender_id !== receiverId || !data.candidate) return;
+    if (data.sender_id && parseInt(data.sender_id) !== parseInt(receiverId)) return;
+    if (!data.candidate) return;
     if (peerConnection && peerConnection.remoteDescription) {
         try {
             await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
@@ -1537,7 +1568,11 @@ function toggleCamera() {
 
 function endCall(notifyPeer) {
     if (notifyPeer !== false) {
-        socket.emit("end_call", { call_id: currentCallId, receiver_id: receiverId });
+        socket.emit("end_call", {
+            call_id: currentCallId,
+            student_id: myStudentId,
+            receiver_id: receiverId
+        });
     }
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
