@@ -1,9 +1,8 @@
-```html
 <!DOCTYPE html>
 <html>
 <head>
 
-    <title>Login</title>
+    <title>Login | Skill Exchange</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -115,6 +114,14 @@
 
         }
 
+        button:disabled{
+
+            background:#999;
+
+            cursor:not-allowed;
+
+        }
+
         .register{
 
             text-align:center;
@@ -133,47 +140,496 @@
 
         }
 
+        #message{
+
+            text-align:center;
+
+            margin-top:15px;
+
+            font-size:14px;
+
+        }
+
     </style>
 
 </head>
+
+
 <body>
 
+
 <div class="container">
+
 
     <h1>Welcome Back</h1>
 
     <p>Login to Skill Exchange Platform</p>
 
-    <form action="/login" method="POST">
 
-        <input type="email"
-               name="email"
-               placeholder="Email Address"
-               required>
+    <form id="loginForm">
 
-        <input type="password"
-               name="password"
-               placeholder="Password"
-               required>
 
-        <button type="submit">
+        <input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            required>
+
+
+        <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            required>
+
+
+        <button
+            type="submit"
+            id="loginButton">
+
             Login
+
         </button>
 
+
     </form>
+
+
+    <div id="message"></div>
+
+
+    <div style="margin-top: 15px; text-align: center;">
+        <a href="javascript:void(0)" id="directResendLink" style="color: #6c757d; font-size: 13px; text-decoration: underline;">
+            Didn't receive verification email? Resend
+        </a>
+    </div>
+
 
     <div class="register">
 
         Don't have an account?
 
         <a href="/register">
+
             Register
+
         </a>
 
     </div>
 
+
 </div>
 
+
+
+<!-- ===================================================== -->
+<!-- FIREBASE LOGIN -->
+<!-- ===================================================== -->
+
+<script type="module">
+
+
+    // Firebase App
+
+    import { initializeApp }
+
+    from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+
+
+    // Firebase Authentication
+
+    import {
+
+        getAuth,
+
+        signInWithEmailAndPassword,
+
+        reload,
+
+        signOut,
+
+        sendEmailVerification
+
+    }
+
+    from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+
+
+    // =====================================================
+    // FIREBASE CONFIGURATION
+    // =====================================================
+
+    const firebaseConfig = {
+
+        apiKey: "AIzaSyDFzsSCQg_xxzYTv-JSW96XEP8qH-1ZRcA",
+
+        authDomain: "skill-exchange-1b00a.firebaseapp.com",
+
+        projectId: "skill-exchange-1b00a",
+
+        storageBucket: "skill-exchange-1b00a.firebasestorage.app",
+
+        messagingSenderId: "806397337650",
+
+        appId: "1:806397337650:web:659db89cfde77f01959c2b",
+
+        measurementId: "G-5WTEE37GPE"
+
+    };
+
+
+
+    // Initialize Firebase
+
+    const app = initializeApp(firebaseConfig);
+
+    const auth = getAuth(app);
+
+
+
+    // =====================================================
+    // GET HTML ELEMENTS
+    // =====================================================
+
+    const loginForm =
+        document.getElementById("loginForm");
+
+
+    const loginButton =
+        document.getElementById("loginButton");
+
+
+    const message =
+        document.getElementById("message");
+
+
+    const directResendLink =
+        document.getElementById("directResendLink");
+
+
+    // =====================================================
+    // DIRECT RESEND LINK HANDLER
+    // =====================================================
+
+    if (directResendLink) {
+        directResendLink.addEventListener("click", async function() {
+            const email = document.querySelector('[name="email"]').value.trim();
+            const password = document.querySelector('[name="password"]').value;
+
+            if (!email || !password) {
+                alert("Please enter your Email Address and Password first, then click Resend.");
+                return;
+            }
+
+            try {
+                directResendLink.innerText = "Sending...";
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                await sendEmailVerification(userCredential.user);
+                await signOut(auth);
+                alert("Verification email sent to " + email + "!\n\nPlease check your Inbox and Spam/Junk folder.");
+                directResendLink.innerText = "Verification Email Sent!";
+            } catch (error) {
+                alert("Could not send verification email: " + error.message);
+                directResendLink.innerText = "Didn't receive verification email? Resend";
+            }
+        });
+    }
+
+
+
+    // =====================================================
+    // LOGIN
+    // =====================================================
+
+    loginForm.addEventListener("submit", async function(event) {
+
+
+        // Prevent normal form submission
+
+        event.preventDefault();
+
+
+
+        // Disable button
+
+        loginButton.disabled = true;
+
+        loginButton.innerText = "Logging in...";
+
+        message.innerText = "";
+
+
+
+        // =================================================
+        // GET EMAIL AND PASSWORD
+        // =================================================
+
+        const email =
+            document.querySelector('[name="email"]').value.trim();
+
+
+        const password =
+            document.querySelector('[name="password"]').value;
+
+
+
+        try {
+
+
+            // =================================================
+            // STEP 1
+            // LOGIN WITH FIREBASE
+            // =================================================
+
+            const userCredential =
+                await signInWithEmailAndPassword(
+                    auth,
+                    email,
+                    password
+                );
+
+
+            const user = userCredential.user;
+
+
+
+            // =================================================
+            // STEP 2
+            // REFRESH USER INFORMATION
+            // =================================================
+
+            await reload(user);
+
+
+
+            // =================================================
+            // STEP 3
+            // CHECK EMAIL VERIFICATION
+            // =================================================
+
+            if (!user.emailVerified) {
+
+                message.innerHTML = `
+                    <div style="margin-top: 10px; color: #d9534f; font-size: 14px;">
+                        Please verify your email before logging in.<br>
+                        <button type="button" id="popupResendBtn" style="margin-top: 10px; background: #28a745; color: white; border: none; padding: 7px 14px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            Resend Verification Email
+                        </button>
+                    </div>
+                `;
+
+                const popupResendBtn = document.getElementById("popupResendBtn");
+                if (popupResendBtn) {
+                    popupResendBtn.addEventListener("click", async () => {
+                        try {
+                            popupResendBtn.disabled = true;
+                            popupResendBtn.innerText = "Sending...";
+                            await sendEmailVerification(user);
+                            alert("A fresh verification email has been sent to " + email + ".\n\nPlease check your Inbox and Spam/Junk folder.");
+                            popupResendBtn.innerText = "Email Sent!";
+                        } catch (err) {
+                            alert("Error sending email: " + err.message);
+                            popupResendBtn.disabled = false;
+                            popupResendBtn.innerText = "Resend Verification Email";
+                        }
+                    });
+                }
+
+                alert(
+                    "Please verify your email first.\n\n" +
+                    "Check your email (and Spam folder) for the verification link."
+                );
+
+
+                // Sign out from Firebase
+
+                await signOut(auth);
+
+
+                loginButton.disabled = false;
+
+                loginButton.innerText = "Login";
+
+                return;
+
+            }
+
+
+
+            // =================================================
+            // STEP 4
+            // GET FIREBASE ID TOKEN
+            // =================================================
+
+            const idToken =
+                await user.getIdToken(true);
+
+
+
+            // =================================================
+            // STEP 5
+            // SEND TOKEN TO FLASK
+            // =================================================
+
+            const response =
+                await fetch("/firebase-login", {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body: JSON.stringify({
+
+                        id_token: idToken
+
+                    })
+
+                });
+
+
+
+            const result =
+                await response.json();
+
+
+
+            // =================================================
+            // STEP 6
+            // CHECK FLASK RESPONSE
+            // =================================================
+
+            if (result.success) {
+
+
+                message.innerText =
+                    "Login successful!";
+
+
+                // Go to dashboard
+
+                window.location.href =
+                    "/dashboard";
+
+
+            } else {
+
+
+                message.innerText =
+                    result.message;
+
+
+                await signOut(auth);
+
+
+                loginButton.disabled = false;
+
+                loginButton.innerText =
+                    "Login";
+
+            }
+
+
+        }
+
+
+        // =====================================================
+        // FIREBASE ERRORS
+        // =====================================================
+
+        catch(error) {
+
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+
+
+            if (
+                error.code ===
+                "auth/invalid-credential"
+            ) {
+
+
+                message.innerText =
+                    "Invalid email or password.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/invalid-email"
+            ) {
+
+
+                message.innerText =
+                    "Please enter a valid email address.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/user-not-found"
+            ) {
+
+
+                message.innerText =
+                    "No account found with this email.";
+
+
+            }
+
+
+            else if (
+                error.code ===
+                "auth/wrong-password"
+            ) {
+
+
+                message.innerText =
+                    "Incorrect password.";
+
+
+            }
+
+
+            else {
+
+
+                message.innerText =
+                    "Login failed: " +
+                    error.message;
+
+            }
+
+
+
+            loginButton.disabled = false;
+
+            loginButton.innerText =
+                "Login";
+
+        }
+
+
+    });
+
+
+</script>
+
+
 </body>
+
 </html>
-```
