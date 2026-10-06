@@ -677,6 +677,44 @@ def connect():
         'connect.html',
         connections=connections
     )
+@app.route('/chat', methods=['GET'])
+def chat_home():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get all active connections for sidebar
+    cursor.execute('''
+    SELECT DISTINCT students.id, students.name, students.email, students.department
+    FROM students
+    JOIN exchange_requests 
+    ON (
+        (students.id = exchange_requests.sender_id AND exchange_requests.receiver_id = ?)
+        OR
+        (students.id = exchange_requests.receiver_id AND exchange_requests.sender_id = ?)
+    )
+    WHERE exchange_requests.status = 'Accepted'
+    AND students.id != ?
+    ''', (session['student_id'], session['student_id'], session['student_id']))
+
+    connections = cursor.fetchall()
+    conn.close()
+
+    if connections:
+        return redirect(f"/chat/{connections[0]['id']}")
+
+    return render_template(
+        'chat.html',
+        messages=[],
+        receiver=None,
+        receiver_id=None,
+        connections=[],
+        room_name=""
+    )
+
+
 @app.route('/chat/<int:id>', methods=['GET', 'POST'])
 def chat(id):
 
@@ -686,30 +724,51 @@ def chat(id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Send message
+    # Get receiver info
+    cursor.execute('SELECT * FROM students WHERE id=?', (id,))
+    receiver = cursor.fetchone()
+
+    # Get all active connections for sidebar
+    cursor.execute('''
+    SELECT DISTINCT students.id, students.name, students.email, students.department
+    FROM students
+    JOIN exchange_requests 
+    ON (
+        (students.id = exchange_requests.sender_id AND exchange_requests.receiver_id = ?)
+        OR
+        (students.id = exchange_requests.receiver_id AND exchange_requests.sender_id = ?)
+    )
+    WHERE exchange_requests.status = 'Accepted'
+    AND students.id != ?
+    ''', (session['student_id'], session['student_id'], session['student_id']))
+
+    connections = cursor.fetchall()
+
+    # Send message (HTTP POST fallback)
     if request.method == 'POST':
 
-        message = request.form['message']
+        message = request.form.get('message', '').strip()
 
-        cursor.execute(
-            '''
-            INSERT INTO messages(
-            sender_id,
-            receiver_id,
-            message
-            )
-
-            VALUES(?,?,?)
-            ''',
-
-            (
-                session['student_id'],
-                id,
+        if message:
+            cursor.execute(
+                '''
+                INSERT INTO messages(
+                sender_id,
+                receiver_id,
                 message
-            )
-        )
+                )
 
-        conn.commit()
+                VALUES(?,?,?)
+                ''',
+
+                (
+                    session['student_id'],
+                    id,
+                    message
+                )
+            )
+
+            conn.commit()
 
 
     # Fetch all messages between both users
@@ -752,9 +811,12 @@ def chat(id):
     return render_template(
         'chat.html',
         messages=messages,
+        receiver=receiver,
         receiver_id=id,
+        connections=connections,
         room_name=room_name
     )
+
 
 
 
@@ -872,7 +934,7 @@ def contact():
     return render_template("contact.html")
 
 # ============================================================
-# VIDEO CALL SIGNALING (Socket.IO)
+# REAL-TIME CHAT & VIDEO CALL SIGNALING (Socket.IO)
 # ============================================================
 
 @socketio.on('connect')
@@ -883,6 +945,48 @@ def handle_connect():
     if student_id is not None:
         join_room(f"student_{student_id}")
         print(f"Student {student_id} connected to Socket.IO")
+
+
+@socketio.on('send_chat_message')
+def handle_send_chat_message(data):
+    """Handle instant WhatsApp-style real-time chat messaging."""
+    sender_id = session.get('student_id')
+    receiver_id = data.get('receiver_id') if data else None
+    message_text = data.get('message', '').strip() if data else ''
+
+    if not sender_id or not receiver_id or not message_text:
+        return
+
+    try:
+        sender_id = int(sender_id)
+        receiver_id = int(receiver_id)
+    except (TypeError, ValueError):
+        return
+
+    # Save into database
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        INSERT INTO messages(sender_id, receiver_id, message)
+        VALUES(?,?,?)
+        ''',
+        (sender_id, receiver_id, message_text)
+    )
+    conn.commit()
+    msg_id = cursor.lastrowid
+    conn.close()
+
+    payload = {
+        'id': msg_id,
+        'sender_id': sender_id,
+        'receiver_id': receiver_id,
+        'message': message_text
+    }
+
+    # Broadcast to receiver and sender
+    emit('receive_chat_message', payload, to=f"student_{receiver_id}")
+    emit('receive_chat_message', payload, to=f"student_{sender_id}")
 
 
 @socketio.on('disconnect')
