@@ -1,3 +1,10 @@
+try:
+    import eventlet
+    eventlet.monkey_patch()
+    async_mode = "eventlet"
+except ImportError:
+    async_mode = "threading"
+
 from flask import Flask, render_template, request, redirect, session, jsonify
 from flask_socketio import SocketIO, emit, join_room
 from datetime import datetime
@@ -9,7 +16,7 @@ from firebase_admin import credentials, auth
 app = Flask(__name__)
 app.secret_key = "skill_exchange_secret"
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode=async_mode)
 
 # Active video calls stored in memory for the current server session.
 active_calls = {}
@@ -27,7 +34,7 @@ if not firebase_admin._apps:
 
 # Database connection
 def get_db_connection():
-    conn = sqlite3.connect('skillexchange.db')
+    conn = sqlite3.connect('skillexchange.db', timeout=15)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -36,6 +43,12 @@ def get_db_connection():
 # Create tables
 conn = get_db_connection()
 cursor = conn.cursor()
+
+try:
+    cursor.execute('PRAGMA journal_mode=WAL;')
+    cursor.execute('PRAGMA synchronous=NORMAL;')
+except sqlite3.OperationalError:
+    pass
 
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS students(
@@ -269,6 +282,7 @@ def firebase_login():
         session['name'] = student['name']
         session['firebase_uid'] = firebase_uid
         session['email'] = student['email']
+        session['is_verified'] = email_verified
 
         return {"success": True, "message": "Login successful."}
 
@@ -299,15 +313,9 @@ def dashboard():
     ''', (session['student_id'],))
     learn_skills = cursor.fetchall()
 
-    is_verified = True
-    if student and student['firebase_uid']:
-        try:
-            fb_user = auth.get_user(student['firebase_uid'])
-            is_verified = getattr(fb_user, 'email_verified', True)
-        except Exception:
-            pass
-
     conn.close()
+
+    is_verified = session.get('is_verified', True)
 
     return render_template(
         'dashboard.html',
@@ -341,15 +349,9 @@ def profile():
     ''', (session['student_id'],))
     learn_skills = cursor.fetchall()
 
-    is_verified = True
-    if student and student['firebase_uid']:
-        try:
-            fb_user = auth.get_user(student['firebase_uid'])
-            is_verified = getattr(fb_user, 'email_verified', True)
-        except Exception:
-            pass
-
     conn.close()
+
+    is_verified = session.get('is_verified', True)
 
     return render_template(
         'profile.html',
@@ -1394,6 +1396,43 @@ def handle_end_call(data):
             del active_calls[cid]
     if receiver_id and receiver_id != student_id:
         emit('call_ended', {}, to=f"student_{receiver_id}")
+
+
+# ============================================================
+# WEBRTC PEER-TO-PEER VIDEO CALL SIGNALING
+# ============================================================
+
+@socketio.on('webrtc_offer')
+def handle_webrtc_offer(data):
+    """Relay WebRTC SDP offer to peer."""
+    receiver_id = data.get('receiver_id') if data else None
+    if receiver_id:
+        emit('webrtc_offer', {
+            'sender_id': session.get('student_id'),
+            'offer': data.get('offer')
+        }, to=f"student_{receiver_id}")
+
+
+@socketio.on('webrtc_answer')
+def handle_webrtc_answer(data):
+    """Relay WebRTC SDP answer back to caller."""
+    receiver_id = data.get('receiver_id') if data else None
+    if receiver_id:
+        emit('webrtc_answer', {
+            'sender_id': session.get('student_id'),
+            'answer': data.get('answer')
+        }, to=f"student_{receiver_id}")
+
+
+@socketio.on('webrtc_ice_candidate')
+def handle_webrtc_ice_candidate(data):
+    """Relay ICE candidate to peer for NAT traversal."""
+    receiver_id = data.get('receiver_id') if data else None
+    if receiver_id:
+        emit('webrtc_ice_candidate', {
+            'sender_id': session.get('student_id'),
+            'candidate': data.get('candidate')
+        }, to=f"student_{receiver_id}")
 
 
 if __name__ == "__main__":

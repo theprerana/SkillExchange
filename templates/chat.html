@@ -12,8 +12,7 @@
 <!-- Socket.IO -->
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
-<!-- Jitsi Meet External API -->
-<script src="https://meet.jit.si/external_api.js"></script>
+<!-- Jitsi Meet Backup Link (Loaded on demand if clicked) -->
 
 <style>
 :root {
@@ -890,20 +889,50 @@ body {
             </span>
         </div>
 
-        <!-- JITSI CONTAINER (CLEAN & ZERO ADS) -->
-        <div id="jitsi-container">
-            <div id="jitsi-topbar">
-                <span id="jitsi-topbar-title"><i class="fa-solid fa-video" style="color:#10B981; margin-right:6px;"></i> Live Video Session</span>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <a id="jitsi-external-link" href="#" target="_blank" class="jitsi-bar-btn" title="Open in new window / full screen tab">
-                        <i class="fa-solid fa-up-right-from-square"></i> Open in Tab
+        <!-- WHATSAPP NATIVE WEBRTC VIDEO CALL WINDOW -->
+        <div id="video-call-modal" style="display:none; position:relative; width:100%; height:490px; background:#0B0914; overflow:hidden; border-bottom:2px solid var(--dark-lavender); z-index:15;">
+            <!-- REMOTE VIDEO (FULL CONTAINER) -->
+            <video id="remoteVideo" autoplay playsinline style="width:100%; height:100%; object-fit:cover; display:none; background:#0B0914;"></video>
+
+            <!-- CALLING / CONNECTING PLACEHOLDER -->
+            <div id="callPlaceholder" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:radial-gradient(circle at center, #2E1065 0%, #0B0914 85%); color:white; text-align:center; padding:20px;">
+                <div style="width:90px; height:90px; border-radius:50%; background:linear-gradient(135deg, #7C3AED, #3B1E6D); display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:700; color:white; border:3px solid #A78BFA; box-shadow:0 0 25px rgba(124, 58, 237, 0.5); margin-bottom:15px;">
+                    {{ receiver.name[0] if receiver and receiver.name else 'P' }}
+                </div>
+                <h3 id="callStateTitle" style="font-size:22px; font-weight:700; margin-bottom:6px; color:#EDE9FE;">{{ receiver.name if receiver else 'Peer' }}</h3>
+                <p id="callStateSubtitle" style="font-size:14px; color:#C4B5FD; margin-bottom:20px;">Connecting video call...</p>
+                <div style="display:flex; gap:10px;">
+                    <a id="jitsiBackupBtn" href="https://meet.jit.si/{{ room_name }}" target="_blank" style="background:rgba(255,255,255,0.12); color:#EDE9FE; border:1px solid rgba(255,255,255,0.25); padding:8px 16px; border-radius:20px; font-size:12.5px; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-up-right-from-square"></i> Open Jitsi Backup Room
                     </a>
-                    <button type="button" onclick="endCallCleanly(true)" class="jitsi-bar-btn danger" title="End Call">
-                        <i class="fa-solid fa-phone-slash"></i> End Call
-                    </button>
                 </div>
             </div>
-            <div id="jitsi-embed-area"></div>
+
+            <!-- LOCAL VIDEO (PICTURE-IN-PICTURE IN CORNER) -->
+            <div id="localVideoContainer" style="position:absolute; top:16px; right:16px; width:130px; height:180px; border-radius:14px; overflow:hidden; border:2px solid #8B5CF6; box-shadow:0 6px 20px rgba(0,0,0,0.6); background:#1F1935; z-index:20;">
+                <video id="localVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; transform:scaleX(-1);"></video>
+            </div>
+
+            <!-- TOP FLOATING BAR (DURATION TIMER) -->
+            <div style="position:absolute; top:14px; left:16px; z-index:20; display:flex; align-items:center; gap:10px;">
+                <span style="background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); color:#EDE9FE; padding:6px 14px; border-radius:20px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,0.15);">
+                    <span style="width:8px; height:8px; border-radius:50%; background:#10B981; display:inline-block;"></span>
+                    <span id="callDurationText">00:00</span>
+                </span>
+            </div>
+
+            <!-- BOTTOM WHATSAPP CALL CONTROLS -->
+            <div style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:16px; z-index:25;">
+                <button type="button" id="micToggleBtn" onclick="toggleMicrophone()" style="width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,0.2); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.3); color:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" title="Mute/Unmute Mic">
+                    <i class="fa-solid fa-microphone" id="micIcon"></i>
+                </button>
+                <button type="button" id="camToggleBtn" onclick="toggleCamera()" style="width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,0.2); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.3); color:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" title="Camera On/Off">
+                    <i class="fa-solid fa-video" id="camIcon"></i>
+                </button>
+                <button type="button" onclick="endCall(true)" style="width:54px; height:54px; border-radius:50%; background:#DC2626; border:none; color:white; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 15px rgba(220, 38, 38, 0.5); transition:transform 0.2s;" title="End Call">
+                    <i class="fa-solid fa-phone-slash"></i>
+                </button>
+            </div>
         </div>
 
         <!-- MAIN MESSAGES CONTAINER - LIGHTEST LAVENDER -->
@@ -986,7 +1015,12 @@ body {
 /* ============================================================
    1. SOCKET.IO & STATE
    ============================================================ */
-const socket = io();
+const socket = io({
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000
+});
 const receiverId = {{ receiver_id|tojson }};
 const myStudentId = {{ session['student_id']|tojson }};
 const messagesContainer = document.getElementById("messagesContainer");
@@ -1098,239 +1132,450 @@ socket.on("receive_message", function(data) {
 });
 
 /* ============================================================
-   3. JITSI VIDEO CALL (ROBUST, CLEAN & RELIABLE)
+   3. HIGH-SPEED NATIVE WEBRTC VIDEO CALL ENGINE (WHATSAPP-STYLE)
    ============================================================ */
 const defaultRoomName = {{ room_name|tojson }};
+const receiverName = {{ (receiver.name if receiver and receiver.name else 'Peer')|tojson }};
 const currentStudentName = {{ session.get('name', 'Student')|tojson }};
-let callTimeout = null;
 
+// WebRTC STUN Configuration (Ultra-fast, zero moderator login required)
+const rtcConfig = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun.cloudflare.com:3478" }
+    ]
+};
+
+let peerConnection = null;
+let localStream = null;
+let iceCandidateQueue = [];
+let callTimerInterval = null;
+let callDurationSeconds = 0;
+let isCaller = false;
+let isMicMuted = false;
+let isCamOff = false;
+
+// Call status banner helper
 function showCallStatus(msg, showJoinBtn, showCancelBtn) {
     const banner = document.getElementById("call-status");
-    document.getElementById("call-status-text").innerText = msg;
+    const textEl = document.getElementById("call-status-text");
     const actions = document.getElementById("call-status-actions");
     const joinBtn = document.getElementById("joinDirectBtn");
     const cancelBtn = document.getElementById("cancelCallBtn");
-    
-    if (showJoinBtn || showCancelBtn) {
-        actions.style.display = "inline-flex";
-        joinBtn.style.display = showJoinBtn ? "inline-flex" : "none";
-        cancelBtn.style.display = showCancelBtn ? "inline-flex" : "none";
-    } else {
-        actions.style.display = "none";
+
+    if (textEl) textEl.innerText = msg;
+    if (actions) {
+        if (showJoinBtn || showCancelBtn) {
+            actions.style.display = "inline-flex";
+            if (joinBtn) joinBtn.style.display = showJoinBtn ? "inline-flex" : "none";
+            if (cancelBtn) cancelBtn.style.display = showCancelBtn ? "inline-flex" : "none";
+        } else {
+            actions.style.display = "none";
+        }
     }
-    banner.style.display = "block";
+    if (banner) banner.style.display = "block";
 }
 
 function hideCallStatus() {
     const banner = document.getElementById("call-status");
     if (banner) banner.style.display = "none";
-    if (callTimeout) {
-        clearTimeout(callTimeout);
-        callTimeout = null;
+}
+
+// Timer helpers
+function startCallTimer() {
+    if (callTimerInterval) clearInterval(callTimerInterval);
+    callDurationSeconds = 0;
+    const timerEl = document.getElementById("callDurationText");
+    if (timerEl) timerEl.innerText = "00:00";
+
+    callTimerInterval = setInterval(() => {
+        callDurationSeconds++;
+        const mins = String(Math.floor(callDurationSeconds / 60)).padStart(2, '0');
+        const secs = String(callDurationSeconds % 60).padStart(2, '0');
+        if (timerEl) timerEl.innerText = `${mins}:${secs}`;
+    }, 1000);
+}
+
+function stopCallTimer() {
+    if (callTimerInterval) {
+        clearInterval(callTimerInterval);
+        callTimerInterval = null;
+    }
+    callDurationSeconds = 0;
+    const timerEl = document.getElementById("callDurationText");
+    if (timerEl) timerEl.innerText = "00:00";
+}
+
+// Show/Hide Call Modal
+function showCallModal() {
+    const modal = document.getElementById("video-call-modal");
+    const remoteVideo = document.getElementById("remoteVideo");
+    const placeholder = document.getElementById("callPlaceholder");
+    if (modal) modal.style.display = "block";
+    if (remoteVideo) remoteVideo.style.display = "none";
+    if (placeholder) placeholder.style.display = "flex";
+}
+
+function hideCallModal() {
+    const modal = document.getElementById("video-call-modal");
+    const remoteVideo = document.getElementById("remoteVideo");
+    const localVideo = document.getElementById("localVideo");
+    if (modal) modal.style.display = "none";
+    if (remoteVideo) {
+        remoteVideo.srcObject = null;
+        remoteVideo.style.display = "none";
+    }
+    if (localVideo) {
+        localVideo.srcObject = null;
     }
 }
 
-// Start Call (Student A)
-function startCall() {
-    if (currentCallId) return;
-    currentCallId = "calling";
-    currentRoomName = defaultRoomName;
-    showCallStatus("📞 Calling peer...", true, true);
-    socket.emit("start_call", { receiver_id: receiverId });
-
-    // After 6 seconds, suggest joining directly if peer hasn't answered yet
-    callTimeout = setTimeout(function() {
-        if (currentCallId === "calling") {
-            showCallStatus("Peer has not answered yet. You can join directly:", true, true);
+// Initialize Camera & Microphone
+async function initLocalStream() {
+    if (localStream) return localStream;
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: true
+        });
+        const localVideo = document.getElementById("localVideo");
+        if (localVideo) {
+            localVideo.srcObject = localStream;
+            localVideo.play().catch(e => console.log("Local video playback:", e));
         }
-    }, 6000);
+        return localStream;
+    } catch (err) {
+        console.warn("Could not get both video and audio, falling back to audio only:", err);
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            return localStream;
+        } catch (audioErr) {
+            console.error("Camera/Mic access denied:", audioErr);
+            alert("Please allow camera and microphone access in your browser to start the video call.");
+            throw audioErr;
+        }
+    }
 }
 
-// Join directly without waiting
+// Create and configure RTCPeerConnection
+function createPeerConnection() {
+    if (peerConnection) return peerConnection;
+
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    iceCandidateQueue = [];
+
+    // Attach local stream tracks
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+    }
+
+    // Remote track arrived
+    peerConnection.ontrack = (event) => {
+        console.log("Remote WebRTC stream received", event.streams);
+        const remoteVideo = document.getElementById("remoteVideo");
+        const placeholder = document.getElementById("callPlaceholder");
+        if (remoteVideo && event.streams && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideo.style.display = "block";
+            if (placeholder) placeholder.style.display = "none";
+            remoteVideo.play().catch(e => console.log("Remote video play error:", e));
+            startCallTimer();
+        }
+    };
+
+    // Send local ICE candidates to peer
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit("webrtc_ice_candidate", {
+                receiver_id: receiverId,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+        console.log("WebRTC Connection State:", peerConnection.connectionState);
+        if (peerConnection.connectionState === "connected") {
+            const subtitle = document.getElementById("callStateSubtitle");
+            if (subtitle) subtitle.innerText = "Connected";
+            startCallTimer();
+        } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
+            showCallStatus("Connection lost. Reconnecting...", false, false);
+        }
+    };
+
+    return peerConnection;
+}
+
+// Drain queued ICE candidates once remote description is set
+async function drainIceCandidates() {
+    if (peerConnection && peerConnection.remoteDescription) {
+        while (iceCandidateQueue.length > 0) {
+            const cand = iceCandidateQueue.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {
+                console.warn("Error adding queued ICE candidate:", e);
+            }
+        }
+    }
+}
+
+// 1. START CALL (Caller)
+async function startCall() {
+    if (currentCallId) return;
+    currentCallId = "call_" + Date.now();
+    isCaller = true;
+
+    showCallModal();
+    const title = document.getElementById("callStateTitle");
+    const subtitle = document.getElementById("callStateSubtitle");
+    if (title) title.innerText = receiverName;
+    if (subtitle) subtitle.innerText = "Ringing...";
+
+    try {
+        await initLocalStream();
+    } catch (e) {
+        hideCallModal();
+        currentCallId = null;
+        return;
+    }
+
+    showCallStatus(`📞 Calling ${receiverName}...`, true, true);
+    socket.emit("start_call", { receiver_id: receiverId });
+}
+
+// Direct join backup (Jitsi link fallback)
 function joinCallImmediately() {
-    if (callTimeout) clearTimeout(callTimeout);
-    showCallStatus("Connecting to video room...", false, false);
-    startJitsiCall(currentRoomName || defaultRoomName);
+    window.open(`https://meet.jit.si/${encodeURIComponent(defaultRoomName)}`, '_blank');
 }
 
-// Cancel Call (Student A)
+// Cancel outgoing call
 function cancelCall() {
-    if (callTimeout) clearTimeout(callTimeout);
     socket.emit("cancel_call", { receiver_id: receiverId });
-    currentCallId = null;
-    currentRoomName = null;
+    endCall(false);
     hideCallStatus();
 }
 
-// Incoming Call (Student B)
+// 2. INCOMING CALL (Receiver)
 socket.on("incoming_call", function(data) {
     currentCallId = data.call_id;
-    currentRoomName = data.room_name || defaultRoomName;
-    document.getElementById("caller-text").innerText = (data.caller_name || "Peer") + " is video calling you...";
-    document.getElementById("incoming-call-overlay").style.display = "flex";
+    isCaller = false;
+    const callerName = data.caller_name || receiverName;
+    const callerText = document.getElementById("caller-text");
+    if (callerText) callerText.innerText = `${callerName} is video calling you...`;
+    const overlay = document.getElementById("incoming-call-overlay");
+    if (overlay) overlay.style.display = "flex";
 });
 
 // Call Cancelled by Caller
 socket.on("call_cancelled", function() {
-    document.getElementById("incoming-call-overlay").style.display = "none";
-    currentCallId = null;
-    currentRoomName = null;
-    hideCallStatus();
+    const overlay = document.getElementById("incoming-call-overlay");
+    if (overlay) overlay.style.display = "none";
+    endCall(false);
+    showCallStatus("Call cancelled by caller", false, false);
+    setTimeout(hideCallStatus, 3000);
 });
 
-// Accept Call (Student B)
-function acceptCall() {
-    if (!currentCallId) return;
-    document.getElementById("incoming-call-overlay").style.display = "none";
-    showCallStatus("Connecting video call...", false, false);
+// 3. ACCEPT CALL (Receiver)
+async function acceptCall() {
+    const overlay = document.getElementById("incoming-call-overlay");
+    if (overlay) overlay.style.display = "none";
+
+    showCallModal();
+    const title = document.getElementById("callStateTitle");
+    const subtitle = document.getElementById("callStateSubtitle");
+    if (title) title.innerText = receiverName;
+    if (subtitle) subtitle.innerText = "Connecting video...";
+
+    try {
+        await initLocalStream();
+    } catch (e) {
+        hideCallModal();
+        if (currentCallId) {
+            socket.emit("reject_call", { call_id: currentCallId });
+        }
+        currentCallId = null;
+        return;
+    }
+
     socket.emit("accept_call", { call_id: currentCallId });
-    startJitsiCall(currentRoomName || defaultRoomName);
 }
 
-// Reject Call (Student B)
+// 4. REJECT CALL (Receiver)
 function rejectCall() {
-    if (!currentCallId) return;
-    document.getElementById("incoming-call-overlay").style.display = "none";
-    socket.emit("reject_call", { call_id: currentCallId });
+    const overlay = document.getElementById("incoming-call-overlay");
+    if (overlay) overlay.style.display = "none";
+    if (currentCallId) {
+        socket.emit("reject_call", { call_id: currentCallId });
+    }
     currentCallId = null;
-    currentRoomName = null;
-    hideCallStatus();
 }
 
-// Peer Accepted (Student A & B connect)
-socket.on("call_accepted", function(data) {
-    if (callTimeout) clearTimeout(callTimeout);
+socket.on("call_rejected", function() {
+    showCallStatus("❌ Call declined", false, false);
+    endCall(false);
+    setTimeout(hideCallStatus, 3000);
+});
+
+// 5. CALL ACCEPTED / CONNECTED: Establish WebRTC PeerConnection
+socket.on("call_accepted", async function(data) {
+    hideCallStatus();
     currentCallId = data.call_id;
-    currentRoomName = data.room_name || defaultRoomName;
-    showCallStatus("Video call connected", false, false);
-    startJitsiCall(currentRoomName);
+    const subtitle = document.getElementById("callStateSubtitle");
+    if (subtitle) subtitle.innerText = "Connecting stream...";
+
+    const pc = createPeerConnection();
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("webrtc_offer", {
+            receiver_id: receiverId,
+            offer: offer
+        });
+    } catch (e) {
+        console.error("Error creating WebRTC offer:", e);
+    }
 });
 
 socket.on("call_connected", function(data) {
-    if (callTimeout) clearTimeout(callTimeout);
-    currentCallId = data.call_id;
-    currentRoomName = data.room_name || defaultRoomName;
-    showCallStatus("Video call connected", false, false);
-    startJitsiCall(currentRoomName);
-});
-
-// Peer Rejected
-socket.on("call_rejected", function(data) {
-    if (callTimeout) clearTimeout(callTimeout);
-    currentCallId = null;
-    currentRoomName = null;
-    showCallStatus("❌ Call declined", false, false);
-    setTimeout(hideCallStatus, 3000);
-});
-
-// Call Ended by Peer
-socket.on("call_ended", function() {
-    endCallCleanly(false);
-    showCallStatus("Video call ended by peer", false, false);
-    setTimeout(hideCallStatus, 3000);
-});
-
-socket.on("call_already_ringing", function() {
-    showCallStatus("Already ringing...", true, true);
-});
-
-// Launch Jitsi with robust fallback and permission configuration
-function startJitsiCall(roomName) {
-    const rName = roomName || defaultRoomName;
-    currentRoomName = rName;
-    const container = document.getElementById("jitsi-container");
-    const embedArea = document.getElementById("jitsi-embed-area");
-    const extLink = document.getElementById("jitsi-external-link");
-
-    container.style.display = "block";
-    extLink.href = "https://meet.jit.si/" + encodeURIComponent(rName);
-
-    if (jitsiApi !== null) return;
-
-    embedArea.innerHTML = "";
-
-    const domain = "meet.jit.si";
-    const options = {
-        roomName: rName,
-        parentNode: embedArea,
-        width: "100%",
-        height: "100%",
-        userInfo: {
-            displayName: currentStudentName
-        },
-        configOverwrite: {
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            enableClosePage: false,
-            enableWelcomePage: false,
-            prejoinPageEnabled: false,
-            disableDeepLinking: true,
-            SHOW_PROMOTIONAL_CLOSE_PAGE: false
-        },
-        interfaceConfigOverwrite: {
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            SHOW_BRAND_WATERMARK: false,
-            SHOW_POWERED_BY: false,
-            SHOW_PROMOTIONAL_CLOSE_PAGE: false,
-            TOOLBAR_BUTTONS: [
-                "microphone",
-                "camera",
-                "desktop",
-                "chat",
-                "fullscreen",
-                "hangup"
-            ]
-        }
-    };
-
-    let initialized = false;
-    if (typeof JitsiMeetExternalAPI !== "undefined") {
-        try {
-            jitsiApi = new JitsiMeetExternalAPI(domain, options);
-            initialized = true;
-
-            jitsiApi.addEventListener("videoConferenceLeft", function() {
-                endCallCleanly(true);
-            });
-
-            jitsiApi.addEventListener("readyToClose", function() {
-                endCallCleanly(true);
-            });
-        } catch (err) {
-            console.warn("Jitsi Meet External API error, falling back to embedded iframe:", err);
-            initialized = false;
-        }
-    }
-
-    if (!initialized) {
-        // Direct responsive iframe fallback with full media device permissions
-        embedArea.innerHTML = `<iframe src="https://${domain}/${encodeURIComponent(rName)}#config.prejoinPageEnabled=false&userInfo.displayName=${encodeURIComponent(currentStudentName)}" allow="camera *; microphone *; fullscreen *; display-capture *; autoplay *" style="width:100%; height:100%; border:none;"></iframe>`;
-    }
-
     hideCallStatus();
+    currentCallId = data.call_id;
+    createPeerConnection();
+});
+
+// 6. WEBRTC SIGNALING HANDLERS
+// Receiver gets offer: sets remote desc, creates answer, sends back
+socket.on("webrtc_offer", async function(data) {
+    if (data.sender_id !== receiverId) return;
+    const pc = createPeerConnection();
+    try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        await drainIceCandidates();
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("webrtc_answer", {
+            receiver_id: receiverId,
+            answer: answer
+        });
+    } catch (e) {
+        console.error("Error handling WebRTC offer:", e);
+    }
+});
+
+// Caller gets answer: sets remote desc
+socket.on("webrtc_answer", async function(data) {
+    if (data.sender_id !== receiverId) return;
+    if (peerConnection) {
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            await drainIceCandidates();
+        } catch (e) {
+            console.error("Error handling WebRTC answer:", e);
+        }
+    }
+});
+
+// Both receive ICE Candidates
+socket.on("webrtc_ice_candidate", async function(data) {
+    if (data.sender_id !== receiverId || !data.candidate) return;
+    if (peerConnection && peerConnection.remoteDescription) {
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } catch (e) {
+            console.warn("Error adding ICE candidate:", e);
+        }
+    } else {
+        iceCandidateQueue.push(data.candidate);
+    }
+});
+
+// 7. IN-CALL CONTROLS (Mic, Cam, End Call)
+function toggleMicrophone() {
+    if (!localStream) return;
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+        isMicMuted = !isMicMuted;
+        audioTracks[0].enabled = !isMicMuted;
+        const micIcon = document.getElementById("micIcon");
+        const micBtn = document.getElementById("micToggleBtn");
+        if (micIcon && micBtn) {
+            if (isMicMuted) {
+                micIcon.className = "fa-solid fa-microphone-slash";
+                micBtn.style.background = "#DC2626";
+            } else {
+                micIcon.className = "fa-solid fa-microphone";
+                micBtn.style.background = "rgba(255,255,255,0.2)";
+            }
+        }
+    }
 }
 
-function endCallCleanly(notifyPeer) {
+function toggleCamera() {
+    if (!localStream) return;
+    const videoTracks = localStream.getVideoTracks();
+    if (videoTracks.length > 0) {
+        isCamOff = !isCamOff;
+        videoTracks[0].enabled = !isCamOff;
+        const camIcon = document.getElementById("camIcon");
+        const camBtn = document.getElementById("camToggleBtn");
+        if (camIcon && camBtn) {
+            if (isCamOff) {
+                camIcon.className = "fa-solid fa-video-slash";
+                camBtn.style.background = "#DC2626";
+            } else {
+                camIcon.className = "fa-solid fa-video";
+                camBtn.style.background = "rgba(255,255,255,0.2)";
+            }
+        }
+    }
+}
+
+function endCall(notifyPeer) {
     if (notifyPeer !== false) {
         socket.emit("end_call", { call_id: currentCallId, receiver_id: receiverId });
     }
-    if (jitsiApi) {
-        try {
-            jitsiApi.dispose();
-        } catch(e) {}
-        jitsiApi = null;
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
     }
-    const container = document.getElementById("jitsi-container");
-    const embedArea = document.getElementById("jitsi-embed-area");
-
-    if (embedArea) embedArea.innerHTML = "";
-    if (container) container.style.display = "none";
-
-    currentCallId = null;
-    currentRoomName = null;
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    iceCandidateQueue = [];
+    stopCallTimer();
+    hideCallModal();
     hideCallStatus();
+    currentCallId = null;
+    isCaller = false;
+    isMicMuted = false;
+    isCamOff = false;
+
+    // Reset control buttons
+    const micIcon = document.getElementById("micIcon");
+    const micBtn = document.getElementById("micToggleBtn");
+    if (micIcon && micBtn) {
+        micIcon.className = "fa-solid fa-microphone";
+        micBtn.style.background = "rgba(255,255,255,0.2)";
+    }
+    const camIcon = document.getElementById("camIcon");
+    const camBtn = document.getElementById("camToggleBtn");
+    if (camIcon && camBtn) {
+        camIcon.className = "fa-solid fa-video";
+        camBtn.style.background = "rgba(255,255,255,0.2)";
+    }
 }
+
+socket.on("call_ended", function() {
+    endCall(false);
+    showCallStatus("Call ended", false, false);
+    setTimeout(hideCallStatus, 3000);
+});
 </script>
 
 </body>
