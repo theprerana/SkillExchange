@@ -533,7 +533,17 @@
                     });
                     const result = await response.json();
                     if (result.success) {
-                        alert("Account profile saved & updated successfully!\nPlease log in to access your dashboard.");
+                        if (user.emailVerified) {
+                            alert("This email is already registered and verified.\nPlease log in to access your dashboard.");
+                        } else {
+                            // Never verified: send a fresh link; login stays blocked until verified.
+                            await sendEmailVerification(user);
+                            alert(
+                                "This email is already registered but not verified yet.\n\n" +
+                                "A new verification email has been sent to " + email + ".\n\n" +
+                                "Please verify your email before logging in."
+                            );
+                        }
                         window.location.href = "/login";
                         return;
                     } else {

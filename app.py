@@ -1181,6 +1181,11 @@ def handle_disconnect():
 @socketio.on('send_message')
 def handle_socket_send_message(data):
     """Real-time message sending between peers."""
+    # Messages are sent through /api/send-message, which saves and delivers them.
+    # Chat pages opened before that change still send each message here as well,
+    # so ignore it to avoid saving and delivering every message twice.
+    return
+
     sender_id = data.get('sender_id') if data else None
     if not sender_id:
         sender_id = session.get('student_id')

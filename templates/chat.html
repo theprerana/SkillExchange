@@ -1115,15 +1115,8 @@ function handleSendMessage(e) {
     messageInput.value = "";
     messageInput.focus();
 
-    // 2. Emit over Socket.IO for instant delivery with client timestamp
-    socket.emit("send_message", {
-        sender_id: myStudentId,
-        receiver_id: receiverId,
-        message: text,
-        created_at: timeStr
-    });
-
-    // 3. Persist to server via background AJAX fallback with client timestamp
+    // 2. Save on the server, which also delivers it to the receiver in real time.
+    //    (Sending it over Socket.IO as well made the receiver get every message twice.)
     fetch("/api/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
