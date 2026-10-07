@@ -1567,8 +1567,11 @@ function cancelCall() {
 }
 
 // 2. INCOMING CALL (Receiver)
+let incomingCallerId = null;
+
 socket.on("incoming_call", function(data) {
     currentCallId = data.call_id;
+    incomingCallerId = data.caller_id;
     isCaller = false;
     const callerName = data.caller_name || receiverName;
     const callerText = document.getElementById("caller-text");
@@ -1596,6 +1599,17 @@ async function acceptCall() {
     stopRingtone();
     const overlay = document.getElementById("incoming-call-overlay");
     if (overlay) overlay.style.display = "none";
+
+    // Call is from someone other than this chat: answer it on the caller's chat page.
+    if (incomingCallerId && parseInt(incomingCallerId) !== parseInt(receiverId)) {
+        const callId = currentCallId;
+        const target = `/chat/${encodeURIComponent(incomingCallerId)}?answer=${encodeURIComponent(callId)}`;
+        let navigated = false;
+        const go = () => { if (!navigated) { navigated = true; window.location.href = target; } };
+        socket.emit("answering_call", { call_id: callId }, go);
+        setTimeout(go, 1500);
+        return;
+    }
 
     showCallModal();
     const title = document.getElementById("callStateTitle");
@@ -1814,6 +1828,20 @@ socket.on("call_ended", function() {
     showCallStatus("Call ended", false, false);
     setTimeout(hideCallStatus, 3000);
 });
+
+// Opened from an incoming-call popup on another page: answer the call now.
+(function answerCallFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const answerCallId = params.get("answer");
+    if (!answerCallId) return;
+    history.replaceState(null, "", window.location.pathname);
+    currentCallId = answerCallId;
+    incomingCallerId = receiverId;
+    isCaller = false;
+    const answer = () => acceptCall();
+    if (socket.connected) answer();
+    else socket.once("connect", answer);
+})();
 </script>
 
 </body>

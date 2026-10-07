@@ -510,6 +510,10 @@ window.addEventListener("click", function(e) {
 
 </script>
 
+{% if session.get('student_id') %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/call_listener.js" data-student-id="{{ session.get('student_id') }}"></script>
+{% endif %}
 </body>
 </html>
 

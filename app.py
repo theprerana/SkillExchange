@@ -10,6 +10,8 @@ from flask_socketio import SocketIO, emit, join_room
 from datetime import datetime
 import sqlite3
 import uuid
+import json
+import os
 import firebase_admin
 from firebase_admin import credentials, auth
 
@@ -24,7 +26,13 @@ active_calls = {}
 # Firebase Admin SDK
 if not firebase_admin._apps:
     try:
-        cred = credentials.Certificate("firebase-service-account.json")
+        # On Railway the key comes from the FIREBASE_SERVICE_ACCOUNT variable;
+        # locally it comes from the JSON file.
+        service_account_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+        if service_account_json:
+            cred = credentials.Certificate(json.loads(service_account_json))
+        else:
+            cred = credentials.Certificate("firebase-service-account.json")
         firebase_admin.initialize_app(cred)
     except Exception as e:
         print("Firebase service account initialization warning:", e)
@@ -34,7 +42,7 @@ if not firebase_admin._apps:
 
 # Database connection
 def get_db_connection():
-    conn = sqlite3.connect('skillexchange.db', timeout=15)
+    conn = sqlite3.connect(os.environ.get('DATABASE_PATH', 'skillexchange.db'), timeout=15)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -194,14 +202,8 @@ def save_student():
         )
         conn.commit()
 
-        # Update session if student is registering
-        cursor.execute('SELECT * FROM students WHERE email=?', (email,))
-        saved_student = cursor.fetchone()
-        if saved_student:
-            session['student_id'] = saved_student['id']
-            session['name'] = saved_student['name']
-            session['firebase_uid'] = firebase_uid
-            session['email'] = saved_student['email']
+        # No session here: students are logged in only through /firebase-login,
+        # which requires a verified email.
 
         return {"success": True, "message": "Student profile saved successfully."}
 
@@ -256,9 +258,29 @@ def firebase_login():
                 cursor.execute('UPDATE students SET firebase_uid=? WHERE id=?', (firebase_uid, student['id']))
                 conn.commit()
 
+        # Registration details saved on the Firebase account (display name)
+        registered = {}
+        try:
+            parsed = json.loads(decoded_token.get('name') or '')
+            if isinstance(parsed, dict):
+                registered = parsed
+        except (ValueError, TypeError):
+            pass
+
+        # Restore registration details if the profile only has default values
+        if student and registered.get('name') and student['roll_no'] == "N/A":
+            cursor.execute(
+                'UPDATE students SET name=?, roll_no=?, department=?, year=? WHERE id=?',
+                (registered.get('name'), registered.get('roll_no') or "N/A",
+                 registered.get('department') or "General", registered.get('year') or 1, student['id'])
+            )
+            conn.commit()
+            cursor.execute('SELECT * FROM students WHERE id=?', (student['id'],))
+            student = cursor.fetchone()
+
         # If student still does not exist, create profile cleanly
         if not student and email:
-            display_name = decoded_token.get('name') or email.split('@')[0]
+            display_name = registered.get('name') or decoded_token.get('name') or email.split('@')[0]
             cursor.execute(
                 '''
                 INSERT INTO students (firebase_uid, name, roll_no, email, department, year)
@@ -266,7 +288,8 @@ def firebase_login():
                 ON CONFLICT(email) DO UPDATE SET
                     firebase_uid = excluded.firebase_uid
                 ''',
-                (firebase_uid, display_name, "N/A", email, "General", 1)
+                (firebase_uid, display_name, registered.get('roll_no') or "N/A", email,
+                 registered.get('department') or "General", registered.get('year') or 1)
             )
             conn.commit()
             cursor.execute('SELECT * FROM students WHERE firebase_uid=?', (firebase_uid,))
@@ -821,13 +844,16 @@ def connect():
         FROM exchange_requests
 
         JOIN students
-        ON students.id = exchange_requests.sender_id
+        ON students.id = CASE
+            WHEN exchange_requests.sender_id = :my_id THEN exchange_requests.receiver_id
+            ELSE exchange_requests.sender_id
+        END
 
-        WHERE exchange_requests.receiver_id = ?
+        WHERE (exchange_requests.sender_id = :my_id OR exchange_requests.receiver_id = :my_id)
         AND exchange_requests.status = 'Accepted'
         ''',
 
-        (session['student_id'],)
+        {"my_id": session['student_id']}
     )
 
     connections = cursor.fetchall()
@@ -1272,6 +1298,8 @@ def handle_accept_call(data):
     call_id = data.get('call_id') if data else None
 
     if call_id not in active_calls:
+        # Caller hung up while the receiver was opening the chat page.
+        emit('call_cancelled', {'call_id': call_id})
         return
 
     call = active_calls[call_id]
@@ -1302,6 +1330,18 @@ def handle_accept_call(data):
         },
         to=f"student_{call['receiver_id']}"
     )
+
+
+@socketio.on('answering_call')
+def handle_answering_call(data):
+    """Receiver accepted from another page and is opening the chat page.
+    Mark the call so the page change (socket disconnect) does not drop it."""
+    call_id = data.get('call_id') if data else None
+    call = active_calls.get(call_id)
+    if call and call['status'] == 'ringing':
+        call['status'] = 'answering'
+        return True
+    return False
 
 
 @socketio.on('reject_call')

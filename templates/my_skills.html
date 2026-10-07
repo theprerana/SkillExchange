@@ -3,7 +3,9 @@
 
 <head>
 
-<title>Connections</title>
+<title>My Skills</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -90,25 +92,45 @@ background:#f8f9fc;
 
 }
 
-.chat{
+.empty{
+
+text-align:center;
+
+color:#666;
+
+padding:30px;
+
+}
+
+.actions{
+
+text-align:center;
+
+margin-top:30px;
+
+}
+
+.btn{
+
+display:inline-block;
 
 background:#24135F;
 
 color:white;
 
-border:none;
+text-decoration:none;
 
 padding:12px 22px;
 
 border-radius:10px;
 
-cursor:pointer;
+margin:0 6px;
 
 font-size:15px;
 
 }
 
-.chat:hover{
+.btn:hover{
 
 background:#3d248d;
 
@@ -124,57 +146,35 @@ background:#3d248d;
 
 <h1>
 
-Connections
+My Skills
 
 </h1>
+
+{% if skills %}
 
 <table>
 
 <tr>
 
-<th>Name</th>
+<th>Skill</th>
 
-<th>Email</th>
-
-<th>Department</th>
-
-<th>Chat</th>
+<th>Type</th>
 
 </tr>
 
-{% for student in connections %}
+{% for skill in skills %}
 
 <tr>
 
 <td>
 
-{{student.name}}
+{{skill.skill_name}}
 
 </td>
 
 <td>
 
-{{student.email}}
-
-</td>
-
-<td>
-
-{{student.department}}
-
-</td>
-
-<td>
-
-<form action="/chat/{{student.id}}">
-
-<button class="chat">
-
-Chat
-
-</button>
-
-</form>
+{{skill.skill_type}}
 
 </td>
 
@@ -183,6 +183,24 @@ Chat
 {% endfor %}
 
 </table>
+
+{% else %}
+
+<p class="empty">
+
+You have not added any skills yet.
+
+</p>
+
+{% endif %}
+
+<div class="actions">
+
+<a class="btn" href="/add_skill">Manage Skills</a>
+
+<a class="btn" href="/dashboard">Dashboard</a>
+
+</div>
 
 </div>
 
@@ -193,4 +211,3 @@ Chat
 </body>
 
 </html>
-```

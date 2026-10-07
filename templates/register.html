@@ -243,7 +243,8 @@
         getAuth,
         createUserWithEmailAndPassword,
         signInWithEmailAndPassword,
-        sendEmailVerification
+        sendEmailVerification,
+        updateProfile
     }
     from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 
@@ -347,6 +348,22 @@
             document.querySelector('[name="password"]').value;
 
 
+        async function saveProfileToFirebase(user) {
+            try {
+                await updateProfile(user, {
+                    displayName: JSON.stringify({
+                        name: name,
+                        roll_no: rollNo,
+                        department: department,
+                        year: year
+                    })
+                });
+            } catch (profileError) {
+                console.error("Profile backup error:", profileError);
+            }
+        }
+
+
 
         try {
 
@@ -365,6 +382,12 @@
 
 
             const user = userCredential.user;
+
+
+            // Keep the registration details on the Firebase account too,
+            // so login can restore them if the database row is missing.
+
+            await saveProfileToFirebase(user);
 
 
 
@@ -494,7 +517,8 @@
                     registerButton.innerText = "Syncing profile...";
                     const userCredential = await signInWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
-                    const idToken = await user.getIdToken();
+                    await saveProfileToFirebase(user);
+                    const idToken = await user.getIdToken(true);
 
                     const response = await fetch("/save-student", {
                         method: "POST",
